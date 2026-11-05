@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.hatv.launcher.data.*
 import dev.hatv.launcher.ha.HomeAssistantClient
+import dev.hatv.launcher.phone.PhoneSetupCoordinator
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.json.JSONObject
@@ -52,6 +53,23 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val daily = MutableStateFlow<List<Forecast>>(emptyList())
     val installed = MutableStateFlow<List<InstalledApp>>(emptyList())
     private val catalog = AppCatalog(app)
+    val phoneSetup =
+        PhoneSetupCoordinator(
+            app,
+            viewModelScope,
+            { config.value },
+            { store.token() },
+            { installed.value },
+            { server, token -> ha.fetchStates(server, token) },
+            { next, token ->
+                store.saveConnection(next, token)
+                mutableConfig.value = next
+                hourly.value = emptyList()
+                daily.value = emptyList()
+                connect()
+            },
+            { requestHome() },
+        )
     private var visible = false
     private var forecastJob: Job? = null
 
@@ -89,6 +107,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun pause() {
+        phoneSetup.stop()
         visible = false
         ha.disconnect()
         forecastJob?.cancel()
@@ -121,8 +140,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         ) {
             "Re-enter the token when changing the server URL"
         }
-        if (token.isNotBlank()) store.saveToken(token.trim())
-        require(c.demo || store.token().isNotBlank()) { "Enter an access token" }
+        require(c.demo || token.isNotBlank() || store.token().isNotBlank()) {
+            "Enter an access token"
+        }
         val next =
             c.copy(
                 server = normalized,
@@ -134,7 +154,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                         )
                     },
             )
-        store.save(next)
+        store.saveConnection(next, token.trim().takeIf { it.isNotBlank() })
         mutableConfig.value = next
         hourly.value = emptyList()
         daily.value = emptyList()
@@ -210,6 +230,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
+        phoneSetup.stop()
         ha.disconnect()
     }
 }

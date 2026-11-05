@@ -249,6 +249,37 @@ class HomeAssistantClient(
             }
         }
 
+    suspend fun fetchStates(server: String, token: String): Map<String, Entity> =
+        withContext(Dispatchers.IO) {
+            val request =
+                Request.Builder()
+                    .url(normalizeServer(server) + "/api/states")
+                    .header("Authorization", "Bearer $token")
+                    .build()
+            http.newCall(request).execute().use { response ->
+                require(response.isSuccessful) { "Home Assistant returned HTTP ${response.code}" }
+                val body = response.body ?: error("Missing response")
+                require(body.contentLength() <= 8 * 1024 * 1024) { "Entity response is too large" }
+                // Bound chunked responses too; never trust Content-Length alone.
+                val buffer = java.io.ByteArrayOutputStream()
+                body.byteStream().use { input ->
+                    val chunk = ByteArray(8192)
+                    while (true) {
+                        val n = input.read(chunk)
+                        if (n < 0) break
+                        require(buffer.size() + n <= 8 * 1024 * 1024) {
+                            "Entity response is too large"
+                        }
+                        buffer.write(chunk, 0, n)
+                    }
+                }
+                val array = JSONArray(buffer.toString("UTF-8"))
+                (0 until array.length())
+                    .map { Entity.parse(array.getJSONObject(it)) }
+                    .associateBy { it.id }
+            }
+        }
+
     suspend fun service(
         domain: String,
         service: String,

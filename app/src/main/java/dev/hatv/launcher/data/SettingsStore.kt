@@ -9,7 +9,6 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import org.json.JSONArray
 import org.json.JSONObject
 
 class SettingsStore(context: Context, private val namespace: String = "launcher") {
@@ -62,90 +61,29 @@ class SettingsStore(context: Context, private val namespace: String = "launcher"
     }
 
     fun load(): Config =
-        runCatching {
-                val j = JSONObject(prefs.getString("config", "{}")!!)
-                val energy = j.optJSONObject("energy") ?: JSONObject()
-                val cameras = j.optJSONArray("cameras") ?: JSONArray()
-                val apps = j.optJSONArray("apps") ?: JSONArray()
-                Config(
-                    server = j.optString("server"),
-                    demo = j.optBoolean("demo", true),
-                    location = j.optString("location", "Duisburg"),
-                    weather = j.optString("weather"),
-                    controls = j.optJSONArray("controls")?.strings() ?: emptyList(),
-                    energy = energy.keys().asSequence().associateWith { energy.getString(it) },
-                    cameras =
-                        (0 until cameras.length()).map {
-                            cameras.getJSONObject(it).let { c ->
-                                CameraConfig(
-                                    c.getString("id"),
-                                    c.optString("hls"),
-                                    c.optString("rtc"),
-                                )
-                            }
-                        },
-                    apps =
-                        (0 until apps.length()).map {
-                            apps.getJSONObject(it).let { a ->
-                                AppShortcut(
-                                    a.getString("id"),
-                                    a.optString("label"),
-                                    a.optString("icon"),
-                                )
-                            }
-                        },
-                    animate = j.optBoolean("animate", true),
-                    livePreviews = j.optBoolean("livePreviews"),
-                    fahrenheit = j.optBoolean("fahrenheit"),
-                    darkPanels = j.optBoolean("darkPanels"),
-                    widgets =
-                        j.optJSONArray("widgets")?.strings()?.takeIf {
-                            it.toSet() == Config().widgets.toSet()
-                        } ?: Config().widgets,
-                )
-            }
+        runCatching { parseConfig(JSONObject(prefs.getString("config", "{}")!!)) }
             .getOrDefault(Config())
 
     fun save(c: Config) {
-        val j =
-            JSONObject()
-                .put("server", c.server)
-                .put("demo", c.demo)
-                .put("location", c.location)
-                .put("weather", c.weather)
-                .put("controls", JSONArray(c.controls))
-                .put("energy", JSONObject(c.energy))
-                .put(
-                    "cameras",
-                    JSONArray().apply {
-                        c.cameras.forEach {
-                            put(
-                                JSONObject()
-                                    .put("id", it.entityId)
-                                    .put("hls", it.hls)
-                                    .put("rtc", it.webRtc)
-                            )
-                        }
-                    },
-                )
-                .put(
-                    "apps",
-                    JSONArray().apply {
-                        c.apps.forEach {
-                            put(
-                                JSONObject()
-                                    .put("id", it.id)
-                                    .put("label", it.label)
-                                    .put("icon", it.icon)
-                            )
-                        }
-                    },
-                )
-                .put("animate", c.animate)
-                .put("livePreviews", c.livePreviews)
-                .put("fahrenheit", c.fahrenheit)
-                .put("darkPanels", c.darkPanels)
-                .put("widgets", JSONArray(c.widgets))
-        check(prefs.edit().putString("config", j.toString()).commit())
+        persist(c, null)
+    }
+
+    /** Configuration and replacement credentials are committed together. */
+    fun saveConnection(c: Config, token: String?) {
+        persist(c, token)
+    }
+
+    private fun persist(c: Config, token: String?) {
+        val editor = prefs.edit().putString("config", c.toJson().toString())
+        if (token != null) {
+            require(token.isNotBlank())
+            val cipher =
+                Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key()) }
+            val encrypted = cipher.doFinal(token.toByteArray(Charsets.UTF_8))
+            editor
+                .putString("token", Base64.encodeToString(encrypted, Base64.NO_WRAP))
+                .putString("iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+        }
+        check(editor.commit())
     }
 }

@@ -7,3 +7,5 @@ Keep this app free of required Google Play Services, analytics, ads, cloud relay
 For a change to Home Assistant behavior, add a protocol-level test with MockWebServer. For UI changes, capture Android TV screenshots and exercise remote focus. Do not check in credentials, APK signing keys, personal entity exports or `local.properties`.
 
 See [validation](docs/VALIDATION.md) for hardware checks. Live integrations require a separately configured Home Assistant test instance. Report Android/TV versions, relevant entity domains, steps and sanitized errors when opening issues.
+
+Phone-page sources live in `web/phone`. Run its npm tests/build and commit the generated APK assets alongside source changes. See [phone setup development](docs/PHONE-SETUP.md#editing-the-browser-page).

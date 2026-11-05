@@ -2,6 +2,8 @@ package dev.hatv.launcher
 
 import android.content.Intent
 import android.view.KeyEvent
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -65,5 +67,71 @@ class RemoteNavigationTest {
         key(KeyEvent.KEYCODE_BACK)
         key(KeyEvent.KEYCODE_DPAD_RIGHT)
         ui.onNodeWithText("YouTube").assertIsDisplayed()
+    }
+
+    @Test
+    fun phoneSetupShowsQrAndBackClosesTheListener() {
+        home()
+        repeat(5) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        ui.onNodeWithText("Set up with your phone").performSemanticsAction(
+            SemanticsActions.RequestFocus
+        ) {
+            it()
+        }
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        try {
+            ui.waitUntil(8000) {
+                ui.onAllNodesWithText("Scan with your phone").fetchSemanticsNodes().isNotEmpty()
+            }
+        } catch (e: Throwable) {
+            var state = ""
+            ui.activityRule.scenario.onActivity { activity ->
+                state =
+                    androidx.lifecycle
+                        .ViewModelProvider(activity)[LauncherViewModel::class.java]
+                        .phoneSetup
+                        .state
+                        .value
+                        .let { it.phase + ": " + it.error }
+            }
+            throw AssertionError("Phone setup state: $state. " + ui.onRoot().printToString(), e)
+        }
+        val image =
+            ui.onNodeWithContentDescription("QR code for temporary phone setup")
+                .assertIsDisplayed()
+                .captureToImage()
+                .asAndroidBitmap()
+        val pixels = IntArray(image.width * image.height)
+        image.getPixels(pixels, 0, image.width, 0, 0, image.width, image.height)
+        val decoded =
+            com.google.zxing
+                .MultiFormatReader()
+                .decode(
+                    com.google.zxing.BinaryBitmap(
+                        com.google.zxing.common.HybridBinarizer(
+                            com.google.zxing.RGBLuminanceSource(image.width, image.height, pixels)
+                        )
+                    )
+                )
+        var link = ""
+        ui.activityRule.scenario.onActivity { activity ->
+            link =
+                androidx.lifecycle
+                    .ViewModelProvider(activity)[LauncherViewModel::class.java]
+                    .phoneSetup
+                    .state
+                    .value
+                    .url
+        }
+        org.junit.Assert.assertEquals(link, decoded.text)
+        InstrumentationRegistry.getInstrumentation()
+            .uiAutomation
+            .executeShellCommand("screencap -p /sdcard/Download/open-home-tv-phone-setup.png")
+            .use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).readBytes()
+            }
+        key(KeyEvent.KEYCODE_BACK)
+        ui.onNodeWithText("Set up with your phone").assertIsDisplayed()
     }
 }

@@ -1,5 +1,19 @@
 # Validation
 
+## Version 0.2.0 — phone setup
+
+- 13 JVM tests passed, including AES-GCM integrity/replay/response binding and HTTP Host/Origin/body limits.
+- 7 Android tests passed, including real TV approval gating, pending token reuse, entity/app validation, atomic Keystore persistence, apply/close, cancellation/expiry, and D-pad navigation.
+- The native UI test decodes the QR from its rendered pixels and compares the URL with the active session.
+- 3 Node browser-protocol tests passed against independent standard AES-256-GCM, including corrupt-message rejection and large envelopes.
+- A real browser exercised the bundled page at 390×844: connect with fixture credentials, choose weather and power sensors, select a light/camera, enter an HLS endpoint, add/reorder apps, apply and verify the resulting JSON and closed listener. This used a development fixture, not a real HA server or physical phone.
+- No new Android permissions, boot receivers, background services or mandatory Google services were added. The server exists only while the explicit setup screen is open.
+
+Physical phone/TV LAN routing, Sony firmware and real HA/camera interoperability still need device validation. See [phone setup security model](PHONE-SETUP.md#security-model), including the trusted-LAN HTTP bootstrap limitation.
+
+## Original 0.1.0 baseline
+
+
 Validated on 5 November 2026 with JDK 17, Gradle 8.11.1, Android SDK 35 and an ARM64 Android TV API 34 emulator on macOS. Emulator RAM: 2048 MB; display: 1920×1080; software graphics. No physical TV, HA credentials or live camera endpoints were supplied.
 
 ## Completed

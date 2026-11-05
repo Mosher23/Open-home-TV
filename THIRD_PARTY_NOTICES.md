@@ -6,6 +6,9 @@ Open home TV source is MIT licensed. Dependencies retain their own licenses:
 - AndroidX / Jetpack Compose / Compose for TV / Lifecycle / Activity / Media3 — Android Open Source Project and contributors, Apache License 2.0.
 - Material icons — Google and contributors, Apache License 2.0.
 - OkHttp / Okio — Square and contributors, Apache License 2.0.
+- ZXing Core — ZXing authors and contributors, Apache License 2.0; QR generation only, no Google Play Services.
+- noble-ciphers — Paul Miller, Thomas Pornin and contributors, MIT License. Full license is bundled at `app/src/main/assets/phone/noble-ciphers.LICENSE.txt`.
+- esbuild and Prettier — development-only browser asset tools, MIT License.
 - Gradle wrapper — Gradle and contributors, Apache License 2.0.
 - JUnit and MockWebServer are development/test dependencies; JUnit 4 uses EPL 1.0, MockWebServer uses Apache License 2.0.
 

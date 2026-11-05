@@ -17,3 +17,5 @@ captures/
 *.hprof
 .externalNativeBuild/
 .cxx/
+
+node_modules/

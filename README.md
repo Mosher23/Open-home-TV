@@ -2,11 +2,19 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.1.0 — functional first release.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.2.0 — phone setup added.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
 [German screenshot](docs/images/dashboard-de.png) · [Settings screenshot](docs/images/settings-en.png)
+
+## Set up with your phone
+
+Open **Settings → Set up with your phone** on the TV, scan its QR code and approve the matching number with your remote. Paste the HA URL/token in your phone browser, select sensors, controls, cameras and apps, then **Apply to TV**. A verified connection automatically turns off Demo mode. The temporary local setup server closes afterwards; no phone app, Google service or cloud relay is needed.
+
+[Phone setup and updating instructions](docs/PHONE-SETUP.md) · [TV pairing screenshot](docs/images/phone-setup-tv.png)
+
+Use a trusted private home network. Setup API payloads are encrypted; the local HTTP bootstrap page is not authenticated against active network tampering. See the guide's security model.
 
 ## Dashboard
 
@@ -34,7 +42,7 @@ cd Open-home-TV
 
 Windows: use `gradlew.bat`. The checked-in Gradle wrapper pins Gradle 8.11.1 with distribution checksum verification. Android Gradle Plugin 8.7.3 and Kotlin 2.0.21 are pinned. Dependency versions are deliberately reproducible; AndroidX libraries come from Google's Maven repository but do not require Google Play Services on the TV.
 
-APK: `app/build/outputs/apk/debug/app-debug.apk`. Minimum TV Android version: **8.0 / API 26**. The GitHub Actions workflow builds a debug APK and uploads it under **Actions → Android → build → Artifacts → Open-home-TV-debug**. Debug APKs are for development; a production release should use your own signing key outside the repository.
+APK: `app/build/outputs/apk/debug/app-debug.apk`. Minimum TV Android version: **8.0 / API 26**. The GitHub Actions workflow builds a debug APK and uploads it under **Actions → Android → build → Artifacts → Open-home-TV-debug**. Debug APKs are for development; a production release should use your own signing key outside the repository. For in-place updates, use the same signing key as the installed APK; fresh CI debug builds may have different keys.
 
 ## Install on Sony BRAVIA
 
@@ -48,6 +56,8 @@ adb shell am start -n dev.hatv.launcher/.MainActivity
 Select this app as the default Home app only after checking navigation. This app never disables or uninstalls the Sony/Google launcher. Android launches the selected HOME activity automatically where firmware supports it; there is no background boot service.
 
 ## Connect Home Assistant
+
+The recommended route is [phone setup](docs/PHONE-SETUP.md). Manual entry with the TV remote remains available:
 
 1. Use the demo dashboard first. Apps in the demo strip are sample tiles; select real installed apps in Settings → Choose and order apps.
 2. In HA, create a long-lived access token from a suitable dedicated user's profile.

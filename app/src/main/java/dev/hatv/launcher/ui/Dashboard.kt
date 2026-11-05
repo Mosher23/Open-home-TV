@@ -151,7 +151,11 @@ fun Launcher(model: LauncherViewModel) {
                                 },
                                 Modifier.fillMaxWidth().height(50.dp),
                             )
-                            Label("OPEN HOME TV  /  0.1", size = 8, color = Muted)
+                            Label(
+                                "OPEN HOME TV  /  ${dev.hatv.launcher.BuildConfig.VERSION_NAME}",
+                                size = 8,
+                                color = Muted,
+                            )
                         }
                         Box(Modifier.weight(1f).fillMaxHeight()) {
                             if (fullscreen == null)

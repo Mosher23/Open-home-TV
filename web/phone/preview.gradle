@@ -1,0 +1,9 @@
+gradle.projectsEvaluated {
+    def app = gradle.rootProject.project(':app')
+    app.tasks.register('phoneSetupPreview', JavaExec) {
+        dependsOn app.tasks.named('compileDebugUnitTestKotlin')
+        classpath = app.tasks.named('testDebugUnitTest').get().classpath
+        mainClass = 'dev.hatv.launcher.phone.PhoneSetupPreview'
+        args gradle.rootProject.file('app/src/main/assets/phone').absolutePath, gradle.rootProject.file('.tools/phone-preview.json').absolutePath
+    }
+}

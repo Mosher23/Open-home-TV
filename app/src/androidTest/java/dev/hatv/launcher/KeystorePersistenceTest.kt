@@ -29,6 +29,9 @@ class KeystorePersistenceTest {
             val prefs = context.getSharedPreferences(namespace, 0)
             assertFalse(prefs.all.values.any { it.toString().contains(token) })
             assertNotEquals(token, prefs.getString("token", null))
+            reopened.saveConnection(Config(location = "Hamburg"), "replacement-test-token")
+            assertEquals("Hamburg", SettingsStore(context, namespace).load().location)
+            assertEquals("replacement-test-token", SettingsStore(context, namespace).token())
             reopened.forgetToken()
             assertEquals("", reopened.token())
         } finally {

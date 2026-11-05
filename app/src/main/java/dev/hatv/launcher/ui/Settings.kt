@@ -19,6 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hatv.launcher.LauncherViewModel
 import dev.hatv.launcher.R
 import dev.hatv.launcher.data.*
+import dev.hatv.launcher.phone.PhoneSetupScreen
 
 @Composable
 fun SettingsPage(model: LauncherViewModel) {
@@ -31,6 +32,10 @@ fun SettingsPage(model: LauncherViewModel) {
     val entities by model.entities.collectAsStateWithLifecycle()
     val installed by model.installed.collectAsStateWithLifecycle()
     if (section != "main") BackHandler { section = "main" }
+    if (section == "phone") {
+        PhoneSetupScreen(model) { section = "main" }
+        return
+    }
     InputTheme(colorScheme = inputDarkColors()) {
         LazyColumn(
             Modifier.fillMaxSize(),
@@ -50,6 +55,20 @@ fun SettingsPage(model: LauncherViewModel) {
             }
             when {
                 section == "main" -> {
+                    item {
+                        Action(
+                            stringResource(R.string.phone_setup),
+                            { section = "phone" },
+                            Modifier.fillMaxWidth(),
+                            selected = true,
+                        )
+                        Label(
+                            stringResource(R.string.phone_setup_hint),
+                            Modifier.padding(top = 7.dp),
+                            size = 12,
+                            color = Muted,
+                        )
+                    }
                     item {
                         Field(
                             stringResource(R.string.server_url),

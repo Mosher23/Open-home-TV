@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <meta name="color-scheme" content="dark" />
+        <title>Open home TV · Setup</title>
+        <style>
+            :root {
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    sans-serif;
+                color: #edf5fc;
+                background: #0a111b;
+                --muted: #a6b7c8;
+                --accent: #55d7ef;
+                --panel: #152333;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+            }
+            header,
+            main,
+            footer {
+                max-width: 900px;
+                margin: auto;
+                padding: 24px;
+            }
+            header {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                border-bottom: 1px solid #263548;
+            }
+            header strong {
+                font-size: 21px;
+            }
+            header small {
+                display: block;
+                color: var(--muted);
+                margin-top: 4px;
+            }
+            .mark {
+                width: 40px;
+                height: 40px;
+                border: 2px solid var(--accent);
+                border-radius: 12px;
+                display: grid;
+                place-items: center;
+                color: var(--accent);
+                font-weight: 800;
+            }
+            main {
+                padding-top: 28px;
+                padding-bottom: 120px;
+            }
+            h1 {
+                font-size: 30px;
+                letter-spacing: -0.7px;
+                margin: 0 0 10px;
+            }
+            h2 {
+                font-size: 20px;
+                margin: 0 0 16px;
+            }
+            h3 {
+                font-size: 16px;
+            }
+            p {
+                line-height: 1.55;
+                color: var(--muted);
+            }
+            section,
+            .card {
+                background: var(--panel);
+                border: 1px solid #27374a;
+                border-radius: 16px;
+                padding: 22px;
+                margin-bottom: 18px;
+            }
+            label.field {
+                display: block;
+                margin-bottom: 16px;
+                font-size: 14px;
+                color: var(--muted);
+            }
+            input:not([type="checkbox"]),
+            select {
+                display: block;
+                width: 100%;
+                padding: 13px;
+                border: 1px solid #425269;
+                border-radius: 9px;
+                background: #0d1723;
+                color: #f0f6fc;
+                font: inherit;
+                margin-top: 7px;
+            }
+            input:focus,
+            select:focus,
+            button:focus-visible {
+                outline: 2px solid var(--accent);
+                outline-offset: 3px;
+            }
+            button {
+                border: 1px solid #43566e;
+                background: #21364b;
+                color: #fff;
+                padding: 12px 17px;
+                border-radius: 10px;
+                font: inherit;
+                cursor: pointer;
+                min-height: 44px;
+            }
+            button.primary {
+                background: var(--accent);
+                border-color: var(--accent);
+                color: #052330;
+                font-weight: 700;
+            }
+            button:disabled {
+                opacity: 0.5;
+                cursor: wait;
+            }
+            .row {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px;
+            }
+            .grid label.field {
+                margin: 0;
+            }
+            .check {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+                padding: 12px 0;
+                border-bottom: 1px solid #2a394b;
+                cursor: pointer;
+                overflow-wrap: anywhere;
+            }
+            .check input {
+                accent-color: var(--accent);
+                width: 20px;
+                height: 20px;
+                flex-shrink: 0;
+            }
+            .check small,
+            .sub {
+                display: block;
+                color: var(--muted);
+                font-size: 12px;
+                margin-top: 4px;
+            }
+            .chip {
+                font-size: 13px;
+                padding: 8px 11px;
+                min-height: 36px;
+            }
+            .selected {
+                padding: 12px;
+                background: #0e1c2b;
+                border-radius: 11px;
+                margin: 10px 0;
+            }
+            .selected strong {
+                display: block;
+                margin-bottom: 10px;
+            }
+            .selected .row button {
+                min-height: 36px;
+                padding: 6px 12px;
+            }
+            .code {
+                font:
+                    700 40px ui-monospace,
+                    monospace;
+                letter-spacing: 7px;
+                color: var(--accent);
+                margin: 25px 0;
+            }
+            .note {
+                font-size: 13px;
+            }
+            .error {
+                color: #ffd0c7;
+                background: #5b2929;
+                padding: 13px;
+                border-radius: 9px;
+                white-space: pre-wrap;
+            }
+            .success {
+                color: #83e3af;
+            }
+            #status:empty {
+                display: none;
+            }
+            #status {
+                position: sticky;
+                top: 0;
+                z-index: 3;
+                background: #1e3448;
+                padding: 14px;
+                margin-bottom: 18px;
+                border-radius: 10px;
+            }
+            footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 14px;
+                background: #0a111bf5;
+                border-top: 1px solid #324356;
+                z-index: 2;
+            }
+            footer small {
+                color: var(--muted);
+            }
+            [hidden] {
+                display: none !important;
+            }
+            details {
+                margin-top: 16px;
+            }
+            summary {
+                cursor: pointer;
+                color: var(--accent);
+                padding: 8px 0;
+            }
+            a {
+                color: var(--accent);
+            }
+            @media (max-width: 560px) {
+                header,
+                main,
+                footer {
+                    padding: 18px;
+                }
+                main {
+                    padding-bottom: 130px;
+                }
+                section,
+                .card {
+                    padding: 18px;
+                }
+                .grid {
+                    grid-template-columns: 1fr;
+                }
+                h1 {
+                    font-size: 26px;
+                }
+                footer button {
+                    white-space: nowrap;
+                }
+                footer small {
+                    font-size: 12px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="mark" aria-hidden="true">H</div>
+            <div>
+                <strong>Open home TV</strong
+                ><small id="subtitle">Set up your dashboard</small>
+            </div>
+        </header>
+        <main>
+            <div id="status" role="status" aria-live="polite"></div>
+            <div id="content"></div>
+        </main>
+        <footer id="footer" hidden>
+            <small id="summary"></small
+            ><button class="primary" id="apply">Apply to TV</button>
+        </footer>
+        <script src="/setup.js" defer></script>
+    </body>
+</html>
