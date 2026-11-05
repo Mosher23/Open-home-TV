@@ -10,3 +10,10 @@ local.properties
 captures/
 
 .kotlin/
+
+.env
+.env.*
+!.env.example
+*.hprof
+.externalNativeBuild/
+.cxx/

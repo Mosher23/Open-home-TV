@@ -4,6 +4,10 @@ A lightweight, ad-free Android TV HOME launcher with local Home Assistant integr
 
 **Status: 0.1.0 — functional first release.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
+![English demo dashboard](docs/images/dashboard-en.png)
+
+[German screenshot](docs/images/dashboard-de.png) · [Settings screenshot](docs/images/settings-en.png)
+
 ## Dashboard
 
 - Dark translucent cards, a static vector dusk landscape, 16:9 layout scaled for 1080p/4K, visible D-pad focus and English/German system localization.
@@ -49,10 +53,10 @@ Select this app as the default Home app only after checking navigation. This app
 2. In HA, create a long-lived access token from a suitable dedicated user's profile.
 3. Enter the local HA server URL and token in launcher Settings. Test the connection. Disable Demo mode and Save to connect.
 4. Reopen Settings → Choose entities. Pick weather, power sensors, controls and cameras. Camera selection is independent of controls.
-5. Back to the main Settings screen and **Save**. Selection changes remain a draft until saved. Widget selection moves that widget to the first slot.
+5. Back to the main Settings screen and **Save**. Selection changes remain a draft until saved. Widget selection moves that widget to the first slot within its row.
 6. For WebRTC, optionally enter a go2rtc HTTP SDP endpoint such as `http://go2rtc.local:1984/api/webrtc?src=front_door`. Leave HLS blank to request a stream from HA. Preview streams opt in; they are disabled by default to save RAM.
 
-The token is encrypted with AES/GCM using Android Keystore and excluded from backups. Standard TLS validation is enforced. HTTP is allowed for local compatibility and sends the token without transport encryption; use HTTPS when available. Tokens are never sent to a different camera origin. Camera URLs must not contain embedded username/password credentials. Settings are private app data.
+The token is encrypted with AES/GCM using Android Keystore and excluded from backups. Standard TLS validation is enforced. HTTP is allowed for local compatibility and sends the token without transport encryption; use HTTPS when available. Changing the server URL requires re-entering a saved token. Tokens are never sent to a different camera origin. Camera URLs must not contain embedded username/password credentials. Settings are private app data.
 
 HA REST is used for connection tests/service actions; one authenticated WebSocket provides entity subscriptions, stream requests and forecasts. It reconnects with bounded exponential backoff and stops retrying invalid credentials. All subscriptions and forecast work stop while the Activity is hidden. App shortcuts work independently of HA.
 
@@ -62,7 +66,7 @@ HA REST is used for connection tests/service actions; one authenticated WebSocke
 - Direct LAN ICE is used with no external STUN/TURN service. WebView support, codecs, camera integration, LAN routing and TV decoder limits determine playback compatibility. HLS is the fallback.
 - At most two preview players or one fullscreen player are active. Prefer low-resolution camera substreams. Additional selected cameras are accessible from the Cameras screen without starting hidden streams.
 - Sony default-launcher restrictions and HDMI visibility vary by firmware. They cannot be bypassed by a normal application.
-- Custom app icons currently support installed package icons or short text initials; arbitrary image import and drag-and-drop widget sizing are future extensions. Widget order is configurable, with three large and three compact slots.
+- Custom app icons currently support installed package icons or short text initials; arbitrary image import and drag-and-drop widget sizing are future extensions. Widget order is configurable within each row, with three large and three compact slots.
 
 ## Development and validation
 
@@ -74,4 +78,4 @@ Primary API references: [Compose for TV](https://developer.android.com/training/
 
 ## License
 
-[MIT](LICENSE). Third-party dependencies retain their respective licenses. Demo service names are descriptive references; no third-party logos or camera images are bundled.
+[MIT](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for dependency licenses. Demo service names are descriptive references; no third-party logos or camera images are bundled.
