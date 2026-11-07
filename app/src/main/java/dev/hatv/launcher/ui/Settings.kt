@@ -5,15 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme as InputTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme as inputDarkColors
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.hatv.launcher.LauncherViewModel
@@ -478,15 +474,7 @@ fun SettingsPage(model: LauncherViewModel) {
 
 @Composable
 private fun Field(label: String, value: String, change: (String) -> Unit, secret: Boolean = false) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = change,
-        label = { Text(label) },
-        singleLine = true,
-        visualTransformation =
-            if (secret) PasswordVisualTransformation() else VisualTransformation.None,
-        modifier = Modifier.fillMaxWidth(),
-    )
+    TvTextField(label, value, change, secret)
 }
 
 @Composable

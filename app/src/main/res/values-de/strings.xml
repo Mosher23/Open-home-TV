@@ -40,4 +40,7 @@
 <string name="switches">Schalter</string>
 <string name="covers">Rollläden</string>
 <string name="thermostats">Thermostate</string>
+<string name="select_to_edit">Zum Bearbeiten OK drücken</string>
+<string name="done">Fertig</string>
+<string name="cancel">Abbrechen</string>
 </resources>

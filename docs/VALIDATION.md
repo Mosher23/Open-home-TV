@@ -1,5 +1,13 @@
 # Validation
 
+## Version 0.3.1 — keyboard activation
+
+- Debug APK, 17 JVM tests, Android lint and 7 targeted Android tests passed on the API 34 TV emulator.
+- The new regression test observes actual IME accessibility windows: D-pad focus moves between URL and token rows without a keyboard; Select opens the editor and keyboard; IME Done applies the draft and restores focus; Back cancels a token draft without saving it.
+- The existing remote navigation tests cover Settings actions, Devices grouping, lights, camera fullscreen, Climate/Calendar and phone setup QR navigation with the new field presentation.
+- All manual Settings fields use the shared TV editor, including filters, app labels and camera endpoints. Token drafts remain outside saved-instance state and are cleared on editor dismissal.
+- The APK retains the prior local signing certificate. No permissions or dependencies changed.
+
 ## Version 0.3.0 — dashboard, rooms, calendar and cameras
 
 Validated on 7 November 2026 with the same Android TV API 34 / 1080p emulator and isolated JDK 17 toolchain.

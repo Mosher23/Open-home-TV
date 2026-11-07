@@ -2,11 +2,13 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.3.0 — TV layout refresh, room climate and calendar.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.3.1 — explicit Select-to-edit Settings fields.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
 [Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Devices](docs/images/devices-en.png) · [Calendar](docs/images/calendar-en.png) · [German](docs/images/dashboard-de.png) · [Settings](docs/images/settings-en.png)
+
+Manual Settings fields stay in browse mode until you press **Select/OK**. The editor opens the keyboard explicitly; **Done** applies the draft, and **Cancel/Back** discards it and restores field focus. The main Settings **Save** still saves your configuration.
 
 ## Set up with your phone
 
