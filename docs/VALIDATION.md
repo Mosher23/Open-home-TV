@@ -1,5 +1,15 @@
 # Validation
 
+## Version 0.4.0 — cameras, loads and action icons
+
+- Build, 22 JVM tests, 13 Android tests and lint passed. Node protocol tests also passed (3).
+- The emulator suite was restricted with ANDROID_SERIAL=emulator-5554; the connected physical TV was not installed, tested or reset by the agent.
+- New tests verify legacy six-widget migration without Home heating, live-preview defaults, camera count limits, ordering and endpoint persistence, four-feed row layout, zero/one-feed rendering, power/Today toggling, full load details and scene activation.
+- Phone setup tests verify camera sequence/count and energy overrides survive encrypted apply, and reject out-of-range counts or power sensors used as daily energy meters.
+- Protocol/model tests verify HA energy preferences and five-minute recorder changes requested in kWh from local midnight; missing/negative statistics are not treated as lifetime readings or zero. Nested included meters are not double-counted.
+- HA MCP read-only inspection confirmed energy/get_prefs contains home and individual appliance pairs. A recorder/statistics_during_period query with types=[change], period=5minute and units.energy=kWh returned valid data for Today. No HA settings or services were modified.
+- Home, Today energy, scene grid and Climate preset visuals use demo-only screenshots. Real simultaneous camera decoding and Sony firmware behavior still need target-TV validation. Browser UI verification remains unavailable in this session; the bundled phone page builds and its host/protocol paths are tested.
+
 ## Version 0.3.1 — keyboard activation
 
 - Debug APK, 17 JVM tests, Android lint and 7 targeted Android tests passed on the API 34 TV emulator.

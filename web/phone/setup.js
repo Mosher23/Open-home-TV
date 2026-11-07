@@ -316,6 +316,12 @@ function sensorSelect(label, keyName, weather = false) {
     box.append(select);
     select.addEventListener("change", () => {
         if (weather) config.weather = select.value;
+        else if (keyName === "energyMeter") config.energyMeter = select.value;
+        else if (keyName.startsWith("energyDevice:")) {
+            config.energyDevices ||= {};
+            const id = keyName.slice("energyDevice:".length);
+            if (select.value) config.energyDevices[id] = select.value; else delete config.energyDevices[id];
+        }
         else if (select.value) config.energy[keyName] = select.value;
         else delete config.energy[keyName];
     });
@@ -324,9 +330,11 @@ function sensorSelect(label, keyName, weather = false) {
 function fillSelect(target, items) {
     const value = target.weather
         ? config.weather
+        : target.keyName === "energyMeter" ? (config.energyMeter || "")
+        : target.keyName.startsWith("energyDevice:") ? (config.energyDevices?.[target.keyName.slice("energyDevice:".length)] || "")
         : config.energy[target.keyName] || "";
     clear(target.select);
-    const none = el("option", text("Not used", "Nicht verwendet"), {
+    const none = el("option", target.keyName === "energyMeter" || target.keyName.startsWith("energyDevice:") ? text("Automatic from HA", "Automatisch aus HA") : text("Not used", "Nicht verwendet"), {
         value: "",
     });
     target.select.append(none);
@@ -393,6 +401,28 @@ function renderEntities() {
     });
     config.powerDevices ||= [];
     const appliances = el("div");
+    const daily = el("div");
+    const dailyFilter = field(text("Find energy meters for Today", "Energiezähler für Heute suchen"));
+    let dailyEntities = [];
+    function drawDaily() {
+        daily.replaceChildren(el("h3", text("Today energy consumption", "Energieverbrauch heute")), el("p", text("Automatically uses HA energy dashboard meters. Optional overrides must be cumulative Wh/kWh/MWh sensors with recorder statistics.", "Nutzt automatisch HA-Energiezähler. Optional kumulative Wh/kWh/MWh-Sensoren mit Recorder-Statistik zuordnen."), { class: "note" }));
+        for (const [id, label] of [["energyMeter", text("Whole-home energy meter", "Energiezähler gesamtes Haus")], ...config.powerDevices.map(id => ["energyDevice:" + id, names.get(id) || id])]) {
+            const target = sensorSelect(label, id);
+            fillSelect(target, dailyEntities);
+            daily.append(target.box);
+        }
+    }
+    let dailyTimer;
+    async function loadDaily() {
+        try {
+            const r = await api("entities", { domain: "energy_sensor", query: dailyFilter.input.value });
+            dailyEntities = r.entities;
+            drawDaily();
+        } catch (e) { message(e.message, true); }
+    }
+    dailyFilter.input.addEventListener("input", () => { clearTimeout(dailyTimer); dailyTimer = setTimeout(loadDaily, 350); });
+    energy.append(dailyFilter.label, daily);
+    loadDaily();
     const applianceTitle = el("h3", text("Measured appliances", "Gemessene Geräte"));
     energy.append(applianceTitle, appliances);
     const count = el("p", "", { class: "note" });
@@ -425,6 +455,7 @@ function renderEntities() {
                 input.checked = config.powerDevices.includes(e.id);
                 input.addEventListener("change", () => {
                     config.powerDevices = input.checked ? [...config.powerDevices, e.id] : config.powerDevices.filter(id => id !== e.id);
+                    drawDaily();
                 });
                 label.append(input, document.createTextNode(e.name + " · " + e.unit));
                 appliances.append(label);
@@ -456,8 +487,8 @@ function entityChecks(domain, title) {
         title,
         domain === "camera"
             ? text(
-                  "The first two selected cameras appear on Home. All selected cameras remain accessible in Cameras.",
-                  "Die ersten zwei ausgewählten Kameras erscheinen auf Home. Alle ausgewählten Kameras bleiben unter Kameras erreichbar.",
+                  "Choose 0–4 Home feeds and use the arrows to set their sequence. The first selected cameras appear left to right, then top to bottom. All selected cameras remain accessible in Cameras.",
+                  "0–4 Home-Feeds auswählen und mit den Pfeilen sortieren. Die ersten Kameras erscheinen von links nach rechts und oben nach unten. Alle ausgewählten Kameras bleiben unter Kameras erreichbar.",
               )
             : text(
                   "Selected controls appear on Home and Devices. Scenes, room climate and calendars are discovered automatically. Assign devices to rooms in Home Assistant.",
@@ -468,6 +499,22 @@ function entityChecks(domain, title) {
         search = field(text("Search entities", "Entitäten suchen")),
         list = el("div"),
         count = el("p", "", { class: "note" });
+    if (domain === "camera") {
+        config.homeCameraCount ??= 2;
+        config.livePreviews ??= true;
+        const label = el("label", text("Number of Home feeds (0 hides cameras)", "Home-Feeds (0 blendet Kameras aus)"), { class: "field" });
+        const select = el("select");
+        for (let n = 0; n <= 4; n++) select.append(el("option", String(n), { value: String(n) }));
+        select.value = String(config.homeCameraCount);
+        select.addEventListener("change", () => { config.homeCameraCount = Number(select.value); selected(); });
+        label.append(select);
+        const live = el("label", undefined, { class: "check" });
+        const checkbox = el("input", undefined, { type: "checkbox" });
+        checkbox.checked = config.livePreviews;
+        checkbox.addEventListener("change", () => { config.livePreviews = checkbox.checked; });
+        live.append(checkbox, el("span", text("Live previews on Home", "Live-Vorschau auf Home")));
+        sectionNode.append(label, live, el("p", text("Live is enabled by default. Prefer low-resolution streams for three or four feeds.", "Live ist standardmäßig aktiv. Für drei oder vier Feeds niedrige Auflösung bevorzugen."), { class: "note" }));
+    }
     sectionNode.append(chosen, search.label, list, count);
     const ids = () =>
         domain === "camera" ? config.cameras.map((c) => c.id) : config.controls;
@@ -478,15 +525,32 @@ function entityChecks(domain, title) {
     }
     function selected() {
         clear(chosen);
-        for (const id of ids()) {
-            const chip = button(`${names.get(id) || id} ×`, () => {
+        for (const [index, id] of ids().entries()) {
+            const chip = button(`${domain === "camera" ? (index + 1) + ". " : ""}${names.get(id) || id} ×`, () => {
                 remove(id);
                 selected();
                 load();
                 summary();
             });
             chip.className = "chip";
-            chosen.append(chip);
+            if (domain === "camera") {
+                const row = el("div", undefined, { class: "row" });
+                const up = button("↑", () => {
+                    [config.cameras[index - 1], config.cameras[index]] = [config.cameras[index], config.cameras[index - 1]];
+                    selected();
+                });
+                up.disabled = index === 0;
+                up.setAttribute("aria-label", text("Move up", "Nach oben") + " · " + (names.get(id) || id));
+                const down = button("↓", () => {
+                    [config.cameras[index + 1], config.cameras[index]] = [config.cameras[index], config.cameras[index + 1]];
+                    selected();
+                });
+                down.disabled = index === config.cameras.length - 1;
+                down.setAttribute("aria-label", text("Move down", "Nach unten") + " · " + (names.get(id) || id));
+                row.append(chip, up, down);
+                if (index < config.homeCameraCount) row.append(el("span", text("Home", "Home"), { class: "note" }));
+                chosen.append(row);
+            } else chosen.append(chip);
         }
         if (domain === "camera") renderEndpoints();
     }
@@ -509,8 +573,8 @@ function entityChecks(domain, title) {
                 el(
                     "p",
                     text(
-                        "Leave both URLs blank to request HLS from Home Assistant.",
-                        "Beide URLs leer lassen, um HLS von Home Assistant anzufordern.",
+                        "Leave both URLs blank for automatic Home Assistant WebRTC with HLS fallback.",
+                        "Beide URLs für automatisches Home Assistant WebRTC mit HLS-Fallback leer lassen.",
                     ),
                 ),
             );
@@ -674,11 +738,6 @@ function renderApps() {
 function renderAppearance() {
     const s = section(text("6. Appearance", "6. Darstellung"));
     for (const [prop, en, german] of [
-        [
-            "livePreviews",
-            "Show live cameras on Home (up to two)",
-            "Livekameras auf Home (höchstens zwei)",
-        ],
         ["animate", "Animate power flows", "Energieflüsse animieren"],
         ["fahrenheit", "Display Fahrenheit", "Fahrenheit anzeigen"],
         ["darkPanels", "Darker panels", "Dunklere Panels"],

@@ -15,6 +15,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private val mutableConfig = MutableStateFlow(store.load())
     val config = mutableConfig.asStateFlow()
     val ha = HomeAssistantClient(viewModelScope)
+    val energyPreferences = MutableStateFlow(EnergyPreferences())
+    val todayEnergy = MutableStateFlow(TodayEnergy())
+    val showEnergyToday = MutableStateFlow(false)
     private val demoStates = MutableStateFlow(Demo.entities)
     val entities =
         combine(config, ha.states, demoStates) { c, live, demo -> if (c.demo) demo else live }
@@ -24,7 +27,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                 if (config.value.demo) Demo.entities else emptyMap(),
             )
     val dashboardEntities =
-        combine(config, entities) { c, all ->
+        combine(config, entities, energyPreferences) { c, all, prefs ->
                 if (c.demo) all
                 else {
                     val selected =
@@ -32,6 +35,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                             c.weather +
                             c.energy.values +
                             c.powerDevices +
+                            prefs.loads.map { it.powerId } +
+                            prefs.homePower +
                             c.cameras.map { it.entityId }
                     all.filter { (id, entity) ->
                         id in selected || entity.domain in listOf("scene", "climate")
@@ -47,11 +52,62 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     val message = MutableStateFlow<String?>(null)
     val homeRequest = MutableStateFlow(0)
 
+    suspend fun refreshTodayEnergy(ids: List<String>) {
+        val day = java.time.LocalDate.now(serverZone.value)
+        val old = todayEnergy.value
+        if (
+            old.day == day &&
+                !old.failed &&
+                old.values.keys.containsAll(ids) &&
+                old.updated?.let {
+                    java.time.Duration.between(it, java.time.Instant.now()).toMillis() < 5 * 60_000L
+                } == true
+        )
+            return
+        try {
+            val values = ha.todayEnergy(ids, serverZone.value)
+            todayEnergy.value = TodayEnergy(day, values, java.time.Instant.now())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            todayEnergy.value =
+                TodayEnergy(day, if (old.day == day) old.values else emptyMap(), old.updated, true)
+        }
+    }
+
     fun requestHome() {
         homeRequest.value += 1
     }
 
     val catalog = MutableStateFlow(HomeCatalog())
+    private val energyStates =
+        combine(config, entities) { c, all -> if (c.demo) all + DemoLoads.states else all }
+    val loadPlan =
+        combine(config, energyStates, energyPreferences, catalog) { c, all, preferences, registry ->
+                energyPlan(c, all, if (c.demo) DemoLoads.preferences else preferences, registry)
+            }
+            .distinctUntilChanged()
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                energyPlan(
+                    config.value,
+                    Demo.entities + DemoLoads.states,
+                    if (config.value.demo) DemoLoads.preferences else EnergyPreferences(),
+                    HomeCatalog(),
+                ),
+            )
+    val loadStates =
+        combine(energyStates, loadPlan) { all, plan ->
+                val ids = (plan.loads.map { it.powerId } + plan.homePower).toSet()
+                all.filterKeys { it in ids }
+            }
+            .distinctUntilChanged()
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                if (config.value.demo) DemoLoads.states else emptyMap(),
+            )
     val serverZone = MutableStateFlow(java.time.ZoneId.systemDefault())
 
     val serverTemperatureF = MutableStateFlow(false)
@@ -105,6 +161,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                             serverTemperatureF.value = false
                         }
                         catalog.value = ha.catalog()
+                        try {
+                            energyPreferences.value = ha.energyPreferences()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            energyPreferences.value = EnergyPreferences()
+                        }
                         while (isActive) {
                             refreshForecast()
                             delay(30 * 60_000L)
@@ -130,6 +193,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     private fun connect() {
         ha.disconnect()
         catalog.value = HomeCatalog()
+        energyPreferences.value = EnergyPreferences()
+        todayEnergy.value = TodayEnergy()
         if (config.value.demo) {
             hourly.value = Demo.hourly
             daily.value = Demo.daily
@@ -220,12 +285,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             val next =
                 when (service) {
                     "toggle" -> if (entity.state == "on") "off" else "on"
+                    "set_hvac_mode" -> data.optString("hvac_mode", entity.state)
                     "open_cover" -> "open"
                     "close_cover" -> "closed"
                     else -> entity.state
                 }
             val attrs = JSONObject(entity.attributes.toString())
             if (data.has("temperature")) attrs.put("temperature", data.getDouble("temperature"))
+            if (data.has("preset_mode")) attrs.put("preset_mode", data.getString("preset_mode"))
             demoStates.value =
                 demoStates.value + (entity.id to entity.copy(state = next, attributes = attrs))
             if (entity.domain in listOf("scene", "climate")) message.value = "✓ ${entity.name}"

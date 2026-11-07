@@ -166,7 +166,7 @@ fun Launcher(model: LauncherViewModel) {
                                             { fullscreen = it },
                                             { page = "power" },
                                         )
-                                    "power" -> PowerPage(config, entities)
+                                    "power" -> PowerPage(model, config)
                                     "apps" -> AppsPage(model, config)
                                     "scenes",
                                     "devices" ->
@@ -297,20 +297,26 @@ private fun HomeDashboard(
             Modifier.weight(1.6f).fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            c.widgets.take(3).forEach { key ->
-                Widget(
-                    key,
-                    model,
-                    c,
-                    entities,
-                    Modifier.weight(
-                            if (key == "energy") 1.45f else if (key == "cameras") .85f else 1.05f
-                        )
-                        .fillMaxHeight(),
-                    openCamera,
-                    openPower,
-                )
-            }
+            c.widgets
+                .take(3)
+                .filterNot { it == "cameras" && c.homeCameraCount == 0 }
+                .forEach { key ->
+                    Widget(
+                        key,
+                        model,
+                        c,
+                        entities,
+                        Modifier.weight(
+                                if (key == "energy") 1.45f
+                                else if (key == "cameras") {
+                                    if (c.homeCameraCount > 2) 1.6f else .95f
+                                } else 1.05f
+                            )
+                            .fillMaxHeight(),
+                        openCamera,
+                        openPower,
+                    )
+                }
         }
         Row(
             Modifier.weight(1f).fillMaxWidth(),
@@ -322,7 +328,7 @@ private fun HomeDashboard(
                     model,
                     c,
                     entities,
-                    Modifier.weight(if (key == "climate") .85f else 1.3f).fillMaxHeight(),
+                    Modifier.weight(1f).fillMaxHeight(),
                     openCamera,
                     openPower,
                 )
@@ -344,7 +350,7 @@ private fun Widget(
 ) {
     val selected = if (c.demo) entities.values.toList() else c.controls.mapNotNull { entities[it] }
     when (key) {
-        "energy" -> EnergyCard(c, entities, modifier, openPower)
+        "energy" -> EnergyCard(model, c, modifier, openPower)
         "weather" -> WeatherCard(model, c, entities, modifier)
         "cameras" -> CameraCard(model, c, entities, modifier, openCamera)
         "scenes" ->
@@ -361,14 +367,6 @@ private fun Widget(
                 stringResource(R.string.lights),
                 Icons.Outlined.Lightbulb,
                 selected.filter { it.domain in listOf("light", "switch", "cover") },
-                model,
-                modifier,
-                c,
-            )
-        "climate" ->
-            ClimateCard(
-                selected.firstOrNull { it.domain == "climate" }
-                    ?: entities.values.firstOrNull { it.domain == "climate" },
                 model,
                 modifier,
                 c,
@@ -561,80 +559,50 @@ private fun ControlsCard(
             contentPadding = PaddingValues(2.dp),
         ) {
             items(entities, key = { it.id }) { entity ->
-                Tile(
-                    {
-                        model.service(
-                            entity,
-                            if (entity.domain == "scene") "turn_on"
-                            else if (entity.domain == "cover")
-                                if (entity.state == "closed") "open_cover" else "close_cover"
-                            else "toggle",
-                        )
-                    },
-                    Modifier.width(60.dp).fillMaxHeight(),
-                    selected = false,
-                    enabled = entity.available,
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(5.dp),
-                    ) {
-                        Icon(
-                            if (entity.domain == "scene") Icons.Outlined.PlayCircle
-                            else if (entity.domain == "cover") Icons.Outlined.Blinds
-                            else Icons.Outlined.Lightbulb,
-                            null,
-                            Modifier.size(21.dp),
-                            tint = if (entity.state == "on") Color(0xFFFFD151) else Muted,
-                        )
-                        Label(entity.name, size = 9, bold = true)
-                        if (entity.domain != "scene")
-                            Label(
-                                if (!entity.available) stringResource(R.string.unavailable)
-                                else if (entity.state == "on") stringResource(R.string.on)
-                                else stringResource(R.string.off),
-                                size = 9,
-                                color = Muted,
+                if (entity.domain == "scene")
+                    SceneTile(entity, model, Modifier.width(75.dp).fillMaxHeight(), compact = true)
+                else
+                    Tile(
+                        {
+                            model.service(
+                                entity,
+                                if (entity.domain == "scene") "turn_on"
+                                else if (entity.domain == "cover")
+                                    if (entity.state == "closed") "open_cover" else "close_cover"
+                                else "toggle",
                             )
+                        },
+                        Modifier.width(60.dp).fillMaxHeight(),
+                        selected = false,
+                        enabled = entity.available,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Icon(
+                                if (entity.domain == "scene") Icons.Outlined.PlayCircle
+                                else if (entity.domain == "cover") Icons.Outlined.Blinds
+                                else Icons.Outlined.Lightbulb,
+                                null,
+                                Modifier.size(21.dp),
+                                tint = if (entity.state == "on") Color(0xFFFFD151) else Muted,
+                            )
+                            Label(entity.name, size = 9, bold = true)
+                            if (entity.domain != "scene")
+                                Label(
+                                    if (!entity.available) stringResource(R.string.unavailable)
+                                    else if (entity.state == "on") stringResource(R.string.on)
+                                    else stringResource(R.string.off),
+                                    size = 9,
+                                    color = Muted,
+                                )
+                        }
                     }
-                }
             }
             if (entities.isEmpty())
                 item { Label(stringResource(R.string.entities), size = 10, color = Muted) }
         }
-    }
-}
-
-@Composable
-private fun ClimateCard(entity: Entity?, model: LauncherViewModel, modifier: Modifier, c: Config) {
-    PanelCard(stringResource(R.string.climate), Icons.Outlined.Thermostat, modifier, c.darkPanels) {
-        val target = entity?.number("temperature")
-        val serverF by model.serverTemperatureF.collectAsStateWithLifecycle()
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Action(
-                "−",
-                { entity?.let { adjustClimate(model, it, -1) } },
-                Modifier.width(36.dp).height(36.dp),
-                enabled = entity?.available == true && target != null,
-            )
-            Label(
-                formatTemperature(target, if (c.demo) false else serverF, c.fahrenheit),
-                size = 21,
-                bold = true,
-            )
-            Action(
-                "+",
-                { entity?.let { adjustClimate(model, it, 1) } },
-                Modifier.width(36.dp).height(36.dp),
-                enabled = entity?.available == true && target != null,
-            )
-        }
-        Label(entity?.name ?: stringResource(R.string.unavailable), size = 11, color = Muted)
-        Label(entity?.state ?: "—", size = 10, color = Green)
     }
 }
 
@@ -656,38 +624,57 @@ private fun CameraCard(
     modifier: Modifier,
     openCamera: (CameraConfig) -> Unit,
 ) {
-    val cameras =
-        if (c.demo) listOf(CameraConfig("camera.harbor"), CameraConfig("camera.rhine"))
-        else c.cameras.take(2)
+    val cameras = c.homeCameras()
+    val columns = if (cameras.size > 2) 2 else 1
     PanelCard(stringResource(R.string.cameras), Icons.Outlined.Videocam, modifier, c.darkPanels) {
-        cameras.forEach { camera ->
-            Tile(
-                { openCamera(camera) },
-                Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(12.dp)),
-                color = Ink,
+        cameras.chunked(columns).forEach { row ->
+            Row(
+                Modifier.weight(1f).fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (!c.demo && c.livePreviews) CameraPlayer(camera, model, Modifier.fillMaxSize())
-                else
-                    Column(
-                        Modifier.padding(7.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(Icons.Outlined.Videocam, null, Modifier.size(20.dp), tint = Muted)
-                        Label(
-                            stringResource(
-                                if (c.demo) R.string.camera_demo else R.string.camera_open
-                            ),
-                            size = 9,
-                            color = Muted,
-                        )
+                row.forEach { camera ->
+                    key(camera.entityId) {
+                        Tile(
+                            { openCamera(camera) },
+                            Modifier.weight(1f)
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(12.dp))
+                                .testTag("home-camera:${camera.entityId}"),
+                            color = Ink,
+                        ) {
+                            if (!c.demo && c.livePreviews)
+                                CameraPlayer(camera, model, Modifier.fillMaxSize())
+                            else
+                                Column(
+                                    Modifier.padding(7.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Videocam,
+                                        null,
+                                        Modifier.size(20.dp),
+                                        tint = Muted,
+                                    )
+                                    Label(
+                                        stringResource(
+                                            if (c.demo) R.string.camera_demo
+                                            else R.string.camera_open
+                                        ),
+                                        size = 9,
+                                        color = Muted,
+                                    )
+                                }
+                            Label(
+                                entities[camera.entityId]?.name ?: camera.entityId,
+                                Modifier.align(Alignment.BottomStart)
+                                    .background(Ink.copy(alpha = .8f))
+                                    .padding(5.dp),
+                                size = 9,
+                            )
+                        }
                     }
-                Label(
-                    entities[camera.entityId]?.name ?: camera.entityId,
-                    Modifier.align(Alignment.BottomStart)
-                        .background(Ink.copy(alpha = .8f))
-                        .padding(5.dp),
-                    size = 9,
-                )
+                }
+                if (row.size < columns) Spacer(Modifier.weight(1f))
             }
         }
         if (cameras.isEmpty()) Label(stringResource(R.string.entities), size = 11, color = Muted)
@@ -738,6 +725,11 @@ private fun DevicePage(
     entities: Map<String, Entity>,
     scenes: Boolean,
 ) {
+    if (scenes) {
+        ScenesPage(model, entities)
+        return
+    }
+
     val selected =
         (if (c.demo || scenes) entities.values else c.controls.mapNotNull { entities[it] }).filter {
             if (scenes) it.domain == "scene"
@@ -890,9 +882,7 @@ private fun CamerasPage(
     entities: Map<String, Entity>,
     openCamera: (CameraConfig) -> Unit,
 ) {
-    val cameras =
-        if (c.demo) listOf(CameraConfig("camera.harbor"), CameraConfig("camera.rhine"))
-        else c.cameras
+    val cameras = c.selectedCameras()
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(5.dp),

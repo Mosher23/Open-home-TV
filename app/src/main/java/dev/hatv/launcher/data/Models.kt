@@ -40,15 +40,25 @@ data class Config(
     val controls: List<String> = emptyList(),
     val energy: Map<String, String> = emptyMap(),
     val powerDevices: List<String> = emptyList(),
+    val energyMeter: String = "",
+    val energyDevices: Map<String, String> = emptyMap(),
     val cameras: List<CameraConfig> = emptyList(),
     val apps: List<AppShortcut> = emptyList(),
     val animate: Boolean = true,
-    val livePreviews: Boolean = false,
+    val livePreviews: Boolean = true,
+    val homeCameraCount: Int = 2,
     val fahrenheit: Boolean = false,
     val darkPanels: Boolean = false,
-    val widgets: List<String> =
-        listOf("weather", "energy", "cameras", "scenes", "lights", "climate"),
+    val widgets: List<String> = listOf("weather", "energy", "cameras", "scenes", "lights"),
 )
+
+const val MAX_HOME_CAMERAS = 4
+
+fun Config.selectedCameras(): List<CameraConfig> =
+    if (demo && cameras.isEmpty()) Demo.cameras else cameras
+
+fun Config.homeCameras(): List<CameraConfig> =
+    selectedCameras().distinctBy { it.entityId }.take(homeCameraCount.coerceIn(0, MAX_HOME_CAMERAS))
 
 fun normalizeServer(input: String): String {
     val url = input.trim().toHttpUrl()
@@ -91,6 +101,8 @@ fun temperature(value: Double?, sourceF: Boolean, targetF: Boolean): Double? =
 fun JSONArray.strings(): List<String> = (0 until length()).map { getString(it) }
 
 object Demo {
+    val cameras = listOf("harbor", "rhine", "garden", "entry").map { CameraConfig("camera.$it") }
+
     val entities: Map<String, Entity> =
         listOf(
                 Entity(
@@ -124,6 +136,11 @@ object Demo {
                         .put("current_temperature", 21.2)
                         .put("current_humidity", 47)
                         .put("hvac_modes", JSONArray(listOf("off", "heat", "auto")))
+                        .put(
+                            "preset_modes",
+                            JSONArray(listOf("home", "away", "eco", "sleep", "comfort", "boost")),
+                        )
+                        .put("preset_mode", "comfort")
                         .put("temperature", 21.5)
                         .put("min_temp", 7)
                         .put("max_temp", 30)
@@ -169,6 +186,8 @@ object Demo {
                     "idle",
                     JSONObject().put("friendly_name", "Duisburg · Innenhafen"),
                 ),
+                Entity("camera.garden", "idle", JSONObject().put("friendly_name", "Garden")),
+                Entity("camera.entry", "idle", JSONObject().put("friendly_name", "Entrance")),
                 Entity(
                     "camera.rhine",
                     "idle",

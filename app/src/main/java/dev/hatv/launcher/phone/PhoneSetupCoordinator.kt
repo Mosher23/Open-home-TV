@@ -205,6 +205,8 @@ class PhoneSetupCoordinator(
                                     controls = emptyList(),
                                     energy = emptyMap(),
                                     powerDevices = emptyList(),
+                                    energyMeter = "",
+                                    energyDevices = emptyMap(),
                                     cameras = emptyList(),
                                 )
                         loaded = true
@@ -220,6 +222,7 @@ class PhoneSetupCoordinator(
                                     (if (domain == "controls")
                                         it.domain in
                                             listOf("light", "switch", "cover", "scene", "climate")
+                                    else if (domain == "energy_sensor") isEnergySensor(it)
                                     else it.domain == domain) &&
                                         (domain != "sensor" ||
                                             it.attributes.optString("unit_of_measurement") in
@@ -239,7 +242,18 @@ class PhoneSetupCoordinator(
                             )
                     }
                     "apply" -> {
-                        val selection = parseConfig(message.getJSONObject("config"))
+                        val requested = message.getJSONObject("config")
+                        if (requested.has("homeCameraCount")) {
+                            val count = requested.opt("homeCameraCount")
+                            require(
+                                count is Number &&
+                                    count.toDouble() == count.toInt().toDouble() &&
+                                    count.toInt() in 0..MAX_HOME_CAMERAS
+                            ) {
+                                "Choose zero to four Home camera feeds"
+                            }
+                        }
+                        val selection = parseConfig(requested)
                         val installed = apps().map { it.id }.toSet()
                         require(
                             selection.apps.size <= 100 &&
@@ -259,6 +273,7 @@ class PhoneSetupCoordinator(
                                 location = selection.location.take(80),
                                 animate = selection.animate,
                                 livePreviews = selection.livePreviews,
+                                homeCameraCount = selection.homeCameraCount,
                                 fahrenheit = selection.fahrenheit,
                                 darkPanels = selection.darkPanels,
                                 widgets = selection.widgets,
@@ -303,6 +318,25 @@ class PhoneSetupCoordinator(
                                 "Choose power sensors measured in W, kW or MW"
                             }
                             require(
+                                selection.energyMeter.isBlank() ||
+                                    discovered[selection.energyMeter]?.let(::isEnergySensor) == true
+                            ) {
+                                "Choose an energy meter in Wh, kWh or MWh"
+                            }
+                            require(
+                                selection.energyDevices.size <= 40 &&
+                                    selection.energyDevices.all { (power, energy) ->
+                                        discovered[power]?.let {
+                                            it.domain == "sensor" &&
+                                                it.attributes.optString("unit_of_measurement") in
+                                                    listOf("W", "kW", "MW")
+                                        } == true &&
+                                            discovered[energy]?.let(::isEnergySensor) == true
+                                    }
+                            ) {
+                                "Invalid daily energy sensor mapping"
+                            }
+                            require(
                                 selection.powerDevices.size <= 40 &&
                                     selection.powerDevices.distinct().size ==
                                         selection.powerDevices.size &&
@@ -332,6 +366,8 @@ class PhoneSetupCoordinator(
                                     controls = selection.controls,
                                     energy = selection.energy,
                                     powerDevices = selection.powerDevices,
+                                    energyMeter = selection.energyMeter,
+                                    energyDevices = selection.energyDevices,
                                     cameras =
                                         selection.cameras.map {
                                             it.copy(
@@ -378,6 +414,9 @@ class PhoneSetupCoordinator(
                             draft.weather +
                             draft.energy.values +
                             draft.powerDevices +
+                            draft.energyMeter +
+                            draft.energyDevices.keys +
+                            draft.energyDevices.values +
                             draft.cameras.map { it.entityId })
                         .distinct()
                         .mapNotNull { discovered[it] }

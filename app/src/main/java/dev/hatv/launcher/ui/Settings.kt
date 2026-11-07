@@ -4,11 +4,13 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme as InputTheme
 import androidx.compose.material3.darkColorScheme as inputDarkColors
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -25,8 +27,11 @@ fun SettingsPage(model: LauncherViewModel) {
     // Token is intentionally not saveable; never enters a saved-state Bundle or text log.
     var token by remember { mutableStateOf("") }
     var section by remember { mutableStateOf("main") }
+    val listState = rememberLazyListState()
+    LaunchedEffect(section) { listState.scrollToItem(0) }
     var filter by remember { mutableStateOf("") }
     val entities by model.entities.collectAsStateWithLifecycle()
+    val energyPrefs by model.energyPreferences.collectAsStateWithLifecycle()
     val installed by model.installed.collectAsStateWithLifecycle()
     if (section != "main") BackHandler { section = "main" }
     if (section == "phone") {
@@ -35,7 +40,8 @@ fun SettingsPage(model: LauncherViewModel) {
     }
     InputTheme(colorScheme = inputDarkColors()) {
         LazyColumn(
-            Modifier.fillMaxSize(),
+            Modifier.fillMaxSize().testTag("settings-list"),
+            state = listState,
             verticalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(6.dp),
         ) {
@@ -159,11 +165,6 @@ fun SettingsPage(model: LauncherViewModel) {
                         }
                     }
                     item {
-                        Toggle(stringResource(R.string.streams), c.livePreviews) {
-                            c = c.copy(livePreviews = !c.livePreviews)
-                        }
-                    }
-                    item {
                         Toggle(stringResource(R.string.units), c.fahrenheit) {
                             c = c.copy(fahrenheit = !c.fahrenheit)
                         }
@@ -225,6 +226,13 @@ fun SettingsPage(model: LauncherViewModel) {
                         Action(
                             stringResource(R.string.power_devices),
                             { section = "powerDevices" },
+                            Modifier.fillMaxWidth(),
+                        )
+                    }
+                    item {
+                        Action(
+                            stringResource(R.string.energy_meters),
+                            { section = "energyMappings" },
                             Modifier.fillMaxWidth(),
                         )
                     }
@@ -313,8 +321,43 @@ fun SettingsPage(model: LauncherViewModel) {
                         )
                     }
                 }
+                section == "energyMappings" -> {
+                    item {
+                        Label(
+                            stringResource(R.string.energy_mapping_hint),
+                            size = 12,
+                            color = Muted,
+                        )
+                    }
+                    item {
+                        Action(
+                            stringResource(R.string.home_energy_meter) +
+                                " · " +
+                                c.energyMeter.ifBlank { stringResource(R.string.automatic) },
+                            { section = "pick:home_energy" },
+                            Modifier.fillMaxWidth(),
+                        )
+                    }
+                    items(
+                        (c.powerDevices + energyPrefs.loads.map { it.powerId })
+                            .filter { it.isNotBlank() }
+                            .distinct(),
+                        key = { it },
+                    ) { id ->
+                        Action(
+                            (entities[id]?.name ?: id) +
+                                " · " +
+                                c.energyDevices[id].orEmpty().ifBlank {
+                                    stringResource(R.string.automatic)
+                                },
+                            { section = "pick:energy_device:$id" },
+                            Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
                 section.startsWith("pick:") -> {
                     val role = section.substringAfter(':')
+                    val dailyEnergy = role == "home_energy" || role.startsWith("energy_device:")
                     item { Label(widgetTitle(role), size = 18) }
                     item { Field("Filter", filter, { filter = it }) }
                     item {
@@ -323,15 +366,24 @@ fun SettingsPage(model: LauncherViewModel) {
                             {
                                 c =
                                     if (role == "weather") c.copy(weather = "")
+                                    else if (role == "home_energy") c.copy(energyMeter = "")
+                                    else if (role.startsWith("energy_device:"))
+                                        c.copy(
+                                            energyDevices =
+                                                c.energyDevices - role.substringAfter(':')
+                                        )
                                     else c.copy(energy = c.energy - role)
-                                section = "entities"
+                                section = if (dailyEnergy) "energyMappings" else "entities"
                             },
                             Modifier.fillMaxWidth(),
                         )
                     }
                     items(
                         entities.values
-                            .filter { it.domain == if (role == "weather") "weather" else "sensor" }
+                            .filter {
+                                if (dailyEnergy) isEnergySensor(it)
+                                else it.domain == if (role == "weather") "weather" else "sensor"
+                            }
                             .filter {
                                 it.id.contains(filter, true) || it.name.contains(filter, true)
                             }
@@ -343,8 +395,15 @@ fun SettingsPage(model: LauncherViewModel) {
                             {
                                 c =
                                     if (role == "weather") c.copy(weather = entity.id)
+                                    else if (role == "home_energy") c.copy(energyMeter = entity.id)
+                                    else if (role.startsWith("energy_device:"))
+                                        c.copy(
+                                            energyDevices =
+                                                c.energyDevices +
+                                                    (role.substringAfter(':') to entity.id)
+                                        )
                                     else c.copy(energy = c.energy + (role to entity.id))
-                                section = "entities"
+                                section = if (dailyEnergy) "energyMappings" else "entities"
                             },
                             Modifier.fillMaxWidth(),
                         )
@@ -429,9 +488,82 @@ fun SettingsPage(model: LauncherViewModel) {
                     }
                 }
                 section == "cameras" -> {
+                    item {
+                        Label(
+                            stringResource(R.string.home_camera_count, c.homeCameraCount),
+                            size = 18,
+                            bold = true,
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Action(
+                                "−",
+                                { c = c.copy(homeCameraCount = c.homeCameraCount - 1) },
+                                Modifier.testTag("home-camera-count-down"),
+                                enabled = c.homeCameraCount > 0,
+                            )
+                            Label("${c.homeCameraCount}", size = 22)
+                            Action(
+                                "+",
+                                { c = c.copy(homeCameraCount = c.homeCameraCount + 1) },
+                                Modifier.testTag("home-camera-count-up"),
+                                enabled = c.homeCameraCount < MAX_HOME_CAMERAS,
+                            )
+                        }
+                        Label(stringResource(R.string.home_camera_hint), size = 12, color = Muted)
+                    }
+                    item {
+                        Toggle(stringResource(R.string.streams), c.livePreviews) {
+                            c = c.copy(livePreviews = !c.livePreviews)
+                        }
+                    }
                     items(c.cameras, key = { it.entityId }) { camera ->
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Label(entities[camera.entityId]?.name ?: camera.entityId, bold = true)
+                            val index = c.cameras.indexOf(camera)
+                            Label(
+                                "${index + 1} · ${entities[camera.entityId]?.name ?: camera.entityId}",
+                                bold = true,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                                Action(
+                                    stringResource(R.string.move_up),
+                                    {
+                                        c =
+                                            c.copy(
+                                                cameras =
+                                                    c.cameras.toMutableList().apply {
+                                                        java.util.Collections.swap(
+                                                            this,
+                                                            index,
+                                                            index - 1,
+                                                        )
+                                                    }
+                                            )
+                                    },
+                                    Modifier.testTag("camera-up:${camera.entityId}"),
+                                    enabled = index > 0,
+                                )
+                                Action(
+                                    stringResource(R.string.move_down),
+                                    {
+                                        c =
+                                            c.copy(
+                                                cameras =
+                                                    c.cameras.toMutableList().apply {
+                                                        java.util.Collections.swap(
+                                                            this,
+                                                            index,
+                                                            index + 1,
+                                                        )
+                                                    }
+                                            )
+                                    },
+                                    Modifier.testTag("camera-down:${camera.entityId}"),
+                                    enabled = index < c.cameras.lastIndex,
+                                )
+                            }
                             Field(
                                 stringResource(R.string.webrtc_url),
                                 camera.webRtc,
@@ -464,8 +596,7 @@ fun SettingsPage(model: LauncherViewModel) {
                             )
                         }
                     }
-                    if (c.cameras.isEmpty())
-                        item { Action(stringResource(R.string.entities), { section = "entities" }) }
+                    item { Action(stringResource(R.string.entities), { section = "entities" }) }
                 }
             }
         }
@@ -487,6 +618,7 @@ fun widgetTitle(key: String): String =
     stringResource(
         when (key) {
             "weather" -> R.string.weather
+            "home_energy" -> R.string.home_energy_meter
             "energy" -> R.string.energy
             "cameras" -> R.string.cameras
             "scenes" -> R.string.scenes
@@ -498,6 +630,8 @@ fun widgetTitle(key: String): String =
             "heat_pump" -> R.string.heat_pump
             "ev" -> R.string.ev
             "household" -> R.string.household
-            else -> R.string.configuration
+            else ->
+                if (key.startsWith("energy_device:")) R.string.energy_sensor
+                else R.string.configuration
         }
     )

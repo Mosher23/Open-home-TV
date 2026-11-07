@@ -67,3 +67,9 @@ The fixture writes a temporary URL to `.tools/phone-preview.json`. Use `fixture-
 ## Version 0.3.0 discovery
 
 Scenes, calendars and room climate are discovered automatically. Assign devices to HA areas to group room controls; only lights/switches and Home shortcuts need manual selection. Map **Whole home** to your whole-home power meter, select optional flows, and choose individual **Measured appliances**. Leave unused power roles empty; they are hidden. Existing saved URL/token, app order and camera selections are retained on an update signed with the same key. Leave camera endpoint overrides empty to use HA-native WebRTC automatically, followed by HLS and a labeled snapshot fallback.
+
+## Version 0.4.0 Home cameras and loads
+
+In Cameras choose 0–4 Home feeds and use the up/down arrows to order selected cameras. The first N appear on Home, left to right then top to bottom; all selected cameras remain in Cameras. Live previews default on. Zero hides the Home panel. Use lower-resolution substreams for three/four feeds. Applying stores the count, sequence and existing URLs atomically.
+
+The load chart uses the HA Energy dashboard’s device/home meter pairs automatically. Optional Energy meters for Today overrides appear in Weather & power. Select cumulative Wh/kWh/MWh sensors with recorder statistics; do not map an instantaneous W sensor as energy. Today is midnight-to-now in HA’s time zone and never uses lifetime readings as a daily total.

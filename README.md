@@ -2,11 +2,11 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.3.1 — explicit Select-to-edit Settings fields.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.4.0 — live Home cameras, Today energy and colorful scenes/presets.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
-[Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Devices](docs/images/devices-en.png) · [Calendar](docs/images/calendar-en.png) · [German](docs/images/dashboard-de.png) · [Settings](docs/images/settings-en.png)
+[Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Devices](docs/images/devices-en.png) · [Calendar](docs/images/calendar-en.png) · [Today energy](docs/images/energy-today-en.png) · [Scenes](docs/images/scenes-en.png) · [German](docs/images/dashboard-de.png) · [Settings](docs/images/settings-en.png)
 
 Manual Settings fields stay in browse mode until you press **Select/OK**. The editor opens the keyboard explicitly; **Done** applies the draft, and **Cancel/Back** discards it and restores field focus. The main Settings **Save** still saves your configuration.
 
@@ -23,12 +23,12 @@ Use a trusted private home network. Setup API payloads are encrypted; the local 
 - Dark translucent cards, a static vector dusk landscape, 16:9 layout scaled for 1080p/4K, visible D-pad focus and English/German system localization.
 - Bottom app dock and Apple TV inspired banner grid, using installed app artwork. Pin/unpin apps from the grid; order, labels and icon initials remain configurable. HDMI shortcuts appear when the TV exposes passthrough inputs. Icon-only navigation retains accessible names. Android TV settings are inside Settings.
 - HA weather entity, current temperature/humidity/wind, hourly/daily forecasts and Celsius/Fahrenheit display.
-- Home power: measured whole-home power, optional solar/grid/battery flows and heat-pump/EV/appliance readings, inspired by the HA Energy Wall. Unconfigured nodes are omitted. Select W/kW/MW sensors and measured appliances on the phone or TV; select the power card for the full appliance list. Negative grid/battery values reverse flow.
+- Individual-load flow chart with a home source, colored appliance branches and Other consumption. Select the card to toggle live W/kW power and Today’s kWh consumption; Details opens the full load list. It reads the HA energy dashboard’s home and device meter pairs automatically, with optional overrides on TV or phone. Daily values use recorder changes since midnight in HA’s time zone, not lifetime counters.
 - Devices are grouped by kind (lights, switches, covers, thermostats), alphabetized within each group, with persistent category filters and hidden empty groups.
-- All HA scenes appear automatically, including scenes never activated before. Lights and switches remain configurable.
+- All HA scenes appear automatically, including scenes never activated before. Modern colored icons distinguish morning, night, cinema, home, eco and other scenes; thermostat presets use the same icon style. Lights and switches remain configurable. Heating controls are in Climate and Devices, with no heating panel on Home.
 - Climate groups sensors and controls by HA area, inheriting device areas when needed: temperature, humidity, CO₂, PM2.5, thermostat setpoint/modes/presets, and supported cover open/stop/close actions. Hidden and diagnostic entities are excluded.
 - Calendar automatically discovers visible HA calendars and loads a seven-day agenda on demand, with calendar filters, all-day dates in HA’s time zone, event details, partial-failure reporting and Refresh.
-- Camera fullscreen playback and optional two-feed dashboard previews. Automatic HA-native WebRTC, optional explicit go2rtc endpoint, then Media3 HLS fallback. Cropped video fills cards. If video fails, a labeled snapshot refreshes every five seconds while HLS retries; it is never labeled live. Cameras stop when hidden.
+- Camera fullscreen playback and live Home previews enabled by default. Choose 0–4 feeds and their sequence from TV Settings → Home cameras and streams or phone setup. Zero hides the Home camera panel; three/four feeds use a grid, in row order. Automatic HA-native WebRTC, optional explicit go2rtc endpoint, then Media3 HLS fallback. Cropped video fills cards. If video fails, a labeled snapshot refreshes every five seconds while HLS retries; it is never labeled live. Cameras stop when hidden.
 - HA URL/token settings, connection testing, entity selection, camera endpoints, app selection, widget order, panel appearance and optional animation.
 - Android TV HOME registration, normal TV app entry, Android settings access, and safe return to the stock launcher.
 
@@ -69,7 +69,7 @@ The recommended route is [phone setup](docs/PHONE-SETUP.md). Manual entry with t
 3. Enter the local HA server URL and token in launcher Settings. Test the connection. Disable Demo mode and Save to connect.
 4. Reopen Settings → Choose entities. Pick weather, power sensors, controls and cameras. Camera selection is independent of controls.
 5. Back to the main Settings screen and **Save**. Selection changes remain a draft until saved. Widget selection moves that widget to the first slot within its row.
-6. Leave both camera endpoints blank for automatic HA-native WebRTC with HLS fallback. Optionally override with a go2rtc HTTP SDP endpoint such as `http://go2rtc.local:1984/api/webrtc?src=front_door`. Leave HLS blank to request a stream from HA. Preview streams opt in; they are disabled by default to save RAM.
+6. Leave both camera endpoints blank for automatic HA-native WebRTC with HLS fallback. Optionally override with a go2rtc HTTP SDP endpoint such as `http://go2rtc.local:1984/api/webrtc?src=front_door`. Leave HLS blank to request a stream from HA. Two preview feeds are enabled by default. Choose 0–4 and their sequence in Home cameras and streams; prefer low-resolution feeds for three or four.
 
 The token is encrypted with AES/GCM using Android Keystore and excluded from backups. Standard TLS validation is enforced. HTTP is allowed for local compatibility and sends the token without transport encryption; use HTTPS when available. Changing the server URL requires re-entering a saved token. Tokens are never sent to a different camera origin. Camera URLs must not contain embedded username/password credentials. Settings are private app data.
 
@@ -79,15 +79,15 @@ HA REST is used for connection tests/service actions; one authenticated WebSocke
 
 Assign devices to areas in HA for room grouping. Entity area overrides device area; unassigned controls remain available under Other devices. Configure the area’s temperature/humidity sensor in HA to prioritize it. Scenes and calendars need no manual entity selection. Registry access may require an HA administrator token; if denied, the launcher retains controls and uses available entity naming/area attributes for grouping.
 
-For power, map **Whole home** to the actual whole-home meter. Leave unused solar/grid/battery/EV/heat-pump roles empty. Select **Measured appliances** separately; avoid aggregate meters and duplicates that would count the same consumption twice. Appliance readings are independently measured and may not sum to the whole-home reading. No individual sensor IDs from a private installation are built into the app.
+The load card uses your HA Energy dashboard automatically. To override it, map **Whole home** to the actual whole-home power meter. Leave unused solar/grid/battery/EV/heat-pump roles empty. Select **Measured appliances** separately; avoid aggregate meters and duplicates that would count the same consumption twice. Appliance readings are independently measured and may not sum to the whole-home reading. For Today, choose optional cumulative Wh/kWh/MWh meter overrides under Energy meters for Today; recorder statistics are required and may lag by about five minutes. Missing statistics stay missing. No individual sensor IDs from a private installation are built into the app.
 
 ## Camera and hardware limits
 
 - WebRTC uses Android System WebView and HA camera capabilities/client configuration, offer subscription, answer and ICE candidate events. Older HA versions without these commands fall back to HLS. An explicit go2rtc HTTP SDP endpoint remains supported.
 - Direct LAN ICE is used with no external STUN/TURN service. WebView support, codecs, camera integration, LAN routing and TV decoder limits determine playback compatibility. HLS is the fallback.
-- At most two preview players or one fullscreen player are active. Prefer low-resolution camera substreams. Additional selected cameras are accessible from the Cameras screen without starting hidden streams.
+- At most four configured preview players or one fullscreen player are active. Prefer low-resolution camera substreams. Additional selected cameras are accessible from the Cameras screen without starting hidden streams.
 - Sony default-launcher restrictions and HDMI visibility vary by firmware. They cannot be bypassed by a normal application.
-- Custom app icons currently support installed package icons or short text initials; arbitrary image import and drag-and-drop widget sizing are future extensions. Widget order is configurable within each row, with three large and three compact slots.
+- Custom app icons currently support installed package icons or short text initials; arbitrary image import and drag-and-drop widget sizing are future extensions. Widget order is configurable within each row, with three large and two compact slots.
 
 ## Development and validation
 

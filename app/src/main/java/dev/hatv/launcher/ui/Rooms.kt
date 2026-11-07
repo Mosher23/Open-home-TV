@@ -225,9 +225,9 @@ fun RoomsPage(model: LauncherViewModel, config: Config) {
                                         ?.strings()
                                         .orEmpty()
                                 ) { preset ->
-                                    Action(
-                                        preset,
-                                        {
+                                    PresetChip(
+                                        preset = preset,
+                                        action = {
                                             model.service(
                                                 entity,
                                                 "set_preset_mode",

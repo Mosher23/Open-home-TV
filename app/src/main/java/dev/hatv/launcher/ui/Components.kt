@@ -29,6 +29,7 @@ fun Label(
     size: Int = 14,
     color: Color = Color.White,
     bold: Boolean = false,
+    maxLines: Int = 2,
 ) {
     Text(
         text,
@@ -36,7 +37,7 @@ fun Label(
         color = color,
         fontSize = size.sp,
         lineHeight = (size * 1.25f).sp,
-        maxLines = 2,
+        maxLines = maxLines,
         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         fontWeight = if (bold) FontWeight.SemiBold else FontWeight.Normal,
     )

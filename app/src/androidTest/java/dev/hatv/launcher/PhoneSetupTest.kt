@@ -82,6 +82,12 @@ class PhoneSetupTest {
                     Entity("sensor.pv", "1500", JSONObject().put("unit_of_measurement", "W")),
                     Entity("light.desk", "on"),
                     Entity("camera.front", "idle"),
+                    Entity("camera.back", "idle"),
+                    Entity(
+                        "sensor.pv_energy",
+                        "1000",
+                        JSONObject().put("unit_of_measurement", "kWh"),
+                    ),
                     Entity("weather.home", "cloudy"),
                 )
                 .associateBy { it.id }
@@ -144,7 +150,10 @@ class PhoneSetupTest {
                         weather = "weather.home",
                         controls = listOf("light.desk"),
                         energy = mapOf("solar" to "sensor.pv"),
-                        cameras = listOf(CameraConfig("camera.front")),
+                        cameras = listOf(CameraConfig("camera.back"), CameraConfig("camera.front")),
+                        homeCameraCount = 1,
+                        energyMeter = "sensor.pv_energy",
+                        energyDevices = mapOf("sensor.pv" to "sensor.pv_energy"),
                         apps = listOf(AppShortcut("test.app")),
                     )
             assertFalse(
@@ -157,6 +166,24 @@ class PhoneSetupTest {
                                 "config",
                                 next.copy(apps = listOf(AppShortcut("unknown"))).toJson(),
                             ),
+                    )
+                    .getBoolean("ok")
+            )
+            assertFalse(
+                request(
+                        url,
+                        key,
+                        "apply",
+                        JSONObject().put("config", next.toJson().put("homeCameraCount", 5)),
+                    )
+                    .getBoolean("ok")
+            )
+            assertFalse(
+                request(
+                        url,
+                        key,
+                        "apply",
+                        JSONObject().put("config", next.copy(energyMeter = "sensor.pv").toJson()),
                     )
                     .getBoolean("ok")
             )

@@ -411,6 +411,27 @@ class HomeAssistantClient(
         }
     }
 
+    suspend fun energyPreferences(): EnergyPreferences =
+        EnergyPreferences.parse(command("energy/get_prefs").getJSONObject("result"))
+
+    suspend fun todayEnergy(ids: List<String>, zone: java.time.ZoneId): Map<String, Double?> {
+        if (ids.isEmpty()) return emptyMap()
+        val selected = ids.distinct().take(41)
+        val start = java.time.LocalDate.now(zone).atStartOfDay(zone).toInstant()
+        val response =
+            command(
+                "recorder/statistics_during_period",
+                JSONObject()
+                    .put("start_time", start.toString())
+                    .put("end_time", java.time.Instant.now().toString())
+                    .put("statistic_ids", JSONArray(selected))
+                    .put("period", "5minute")
+                    .put("types", JSONArray(listOf("change")))
+                    .put("units", JSONObject().put("energy", "kWh")),
+            )
+        return todayChanges(response.getJSONObject("result"), selected)
+    }
+
     suspend fun catalog(): HomeCatalog = coroutineScope {
         suspend fun list(type: String): JSONArray =
             try {

@@ -61,6 +61,25 @@ class HomeAssistantClientTest {
                                     ws.send(
                                         """{"id":$id,"type":"result","success":true,"result":null}"""
                                     )
+                                "energy/get_prefs" ->
+                                    ws.send(
+                                        """{"id":$id,"type":"result","success":true,"result":{"energy_sources":[{"type":"home","stat_rate":"sensor.home_power","stat_energy_to":"sensor.home_energy"}],"device_consumption":[]}}"""
+                                    )
+                                "recorder/statistics_during_period" -> {
+                                    assertEquals("5minute", j.getString("period"))
+                                    assertEquals(
+                                        "kWh",
+                                        j.getJSONObject("units").getString("energy"),
+                                    )
+                                    assertEquals("change", j.getJSONArray("types").getString(0))
+                                    val local =
+                                        java.time.Instant.parse(j.getString("start_time"))
+                                            .atZone(java.time.ZoneId.of("Europe/Berlin"))
+                                    assertEquals(java.time.LocalTime.MIDNIGHT, local.toLocalTime())
+                                    ws.send(
+                                        """{"id":$id,"type":"result","success":true,"result":{"sensor.home_energy":[{"change":0.4},{"change":0.3}]}}"""
+                                    )
+                                }
                                 "camera/stream" ->
                                     ws.send(
                                         """{"id":$id,"type":"result","success":true,"result":{"url":"/api/hls/test/master_playlist.m3u8"}}"""
@@ -108,6 +127,16 @@ class HomeAssistantClientTest {
             val snapshotRequest = server.takeRequest(2, TimeUnit.SECONDS)!!
             assertEquals("/api/camera_proxy/camera.test", snapshotRequest.requestUrl!!.encodedPath)
             assertEquals("Bearer local-test-token", snapshotRequest.getHeader("Authorization"))
+            assertEquals("sensor.home_power", client.energyPreferences().homePower)
+            assertEquals(
+                .7,
+                client
+                    .todayEnergy(
+                        listOf("sensor.home_energy"),
+                        java.time.ZoneId.of("Europe/Berlin"),
+                    )["sensor.home_energy"]!!,
+                .00001,
+            )
             val rtc = client.cameraWebRtc("camera.test", "offer-sdp")
             withTimeout(2000) {
                 assertEquals("session", rtc.events.receive().getString("type"))

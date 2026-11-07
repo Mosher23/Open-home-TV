@@ -12,6 +12,8 @@ fun Config.toJson(): JSONObject =
         .put("controls", JSONArray(controls))
         .put("energy", JSONObject(energy))
         .put("powerDevices", JSONArray(powerDevices))
+        .put("energyMeter", energyMeter)
+        .put("energyDevices", JSONObject(energyDevices))
         .put(
             "cameras",
             JSONArray().apply {
@@ -32,12 +34,14 @@ fun Config.toJson(): JSONObject =
         )
         .put("animate", animate)
         .put("livePreviews", livePreviews)
+        .put("homeCameraCount", homeCameraCount)
         .put("fahrenheit", fahrenheit)
         .put("darkPanels", darkPanels)
         .put("widgets", JSONArray(widgets))
 
 fun parseConfig(j: JSONObject): Config {
     val energy = j.optJSONObject("energy") ?: JSONObject()
+    val energyDevices = j.optJSONObject("energyDevices") ?: JSONObject()
     val cameras = j.optJSONArray("cameras") ?: JSONArray()
     val apps = j.optJSONArray("apps") ?: JSONArray()
     return Config(
@@ -48,6 +52,9 @@ fun parseConfig(j: JSONObject): Config {
         controls = j.optJSONArray("controls")?.strings() ?: emptyList(),
         energy = energy.keys().asSequence().associateWith { energy.getString(it) },
         powerDevices = j.optJSONArray("powerDevices")?.strings() ?: emptyList(),
+        energyMeter = j.optString("energyMeter"),
+        energyDevices =
+            energyDevices.keys().asSequence().associateWith { energyDevices.getString(it) },
         cameras =
             (0 until cameras.length()).map {
                 cameras.getJSONObject(it).let { c ->
@@ -61,12 +68,16 @@ fun parseConfig(j: JSONObject): Config {
                 }
             },
         animate = j.optBoolean("animate", true),
-        livePreviews = j.optBoolean("livePreviews"),
+        // The old opt-in default becomes live once on upgrade; later explicit choices persist.
+        livePreviews = if (j.has("homeCameraCount")) j.optBoolean("livePreviews", true) else true,
+        homeCameraCount = j.optInt("homeCameraCount", 2).coerceIn(0, MAX_HOME_CAMERAS),
         fahrenheit = j.optBoolean("fahrenheit"),
         darkPanels = j.optBoolean("darkPanels"),
         widgets =
-            j.optJSONArray("widgets")?.strings()?.takeIf {
-                it.size == 6 && it.toSet() == Config().widgets.toSet()
-            } ?: Config().widgets,
+            j.optJSONArray("widgets")
+                ?.strings()
+                ?.filterNot { it == "climate" }
+                ?.takeIf { it.size == 5 && it.toSet() == Config().widgets.toSet() }
+                ?: Config().widgets,
     )
 }
