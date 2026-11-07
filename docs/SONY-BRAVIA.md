@@ -16,7 +16,7 @@ adb shell am start -n dev.hatv.launcher/.MainActivity
 
 Use the ports shown by the TV. Some older firmware uses `adb connect TV_IP:5555`; do not assume port 5555 on every TV.
 
-4. Open the app and verify the demo dashboard before connecting HA. For easy configuration, use **Settings → Set up with your phone** and follow the [phone setup guide](PHONE-SETUP.md). Manual setup is also available. Select apps and entities in Settings. Save a server URL and a token, test the connection and then disable Demo mode and save. Create a dedicated HA user with appropriate permissions; its long-lived token has that user's access. HTTPS is preferred; cleartext HTTP sends the token unencrypted on your LAN.
+4. In the TV Apps list, open **HA TV Launcher** (the blue house icon), or use the ADB start command above. Verify the demo dashboard before connecting HA. For easy configuration, use **Settings → Set up with your phone** and follow the [phone setup guide](PHONE-SETUP.md). Manual setup is also available. Select apps and entities in Settings. Save a server URL and a token, test the connection and then disable Demo mode and save. Create a dedicated HA user with appropriate permissions; its long-lived token has that user's access. HTTPS is preferred; cleartext HTTP sends the token unencrypted on your LAN.
 5. Choose Open home TV in the TV's default Home app setting if present. Press Home and select it in the chooser if one appears. An optional ADB command supported on many Android versions is:
 
 ```sh
@@ -28,7 +28,7 @@ Some Sony firmware prevents replacement; opening the launcher as a regular TV ap
 
 ## Restore the original launcher
 
-Use Open home TV's sidebar **Android TV settings** button to change the default Home app. If necessary, list HOME handlers and choose the exact original component from your TV:
+Open **Settings → Android TV settings** to change the default Home app. If necessary, list HOME handlers and choose the exact original component from your TV:
 
 ```sh
 adb shell cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME
@@ -46,7 +46,7 @@ Uninstalling removes its token and settings. Keep the stock launcher installed. 
 
 ## Camera setup
 
-Choose camera entities, then configure each camera's optional endpoints:
+Choose camera entities. Leave endpoints blank for automatic HA-native WebRTC with HLS fallback, or configure an override:
 
 - go2rtc WebRTC: `http://GO2RTC_LAN_IP:1984/api/webrtc?src=front_door` (HTTP SDP API).
 - HLS: a local HLS playlist URL, or blank to use Home Assistant's `camera/stream` command.

@@ -11,6 +11,7 @@ fun Config.toJson(): JSONObject =
         .put("weather", weather)
         .put("controls", JSONArray(controls))
         .put("energy", JSONObject(energy))
+        .put("powerDevices", JSONArray(powerDevices))
         .put(
             "cameras",
             JSONArray().apply {
@@ -46,6 +47,7 @@ fun parseConfig(j: JSONObject): Config {
         weather = j.optString("weather"),
         controls = j.optJSONArray("controls")?.strings() ?: emptyList(),
         energy = energy.keys().asSequence().associateWith { energy.getString(it) },
+        powerDevices = j.optJSONArray("powerDevices")?.strings() ?: emptyList(),
         cameras =
             (0 until cameras.length()).map {
                 cameras.getJSONObject(it).let { c ->

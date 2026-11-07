@@ -48,6 +48,8 @@ fun Tile(
     selected: Boolean = false,
     color: Color = Color(0xFF233140),
     enabled: Boolean = true,
+    focusedScale: Float = 1.025f,
+    focusColor: Color = Accent,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Surface(
@@ -63,11 +65,11 @@ fun Tile(
                 focusedContentColor = Color.White,
                 disabledContainerColor = color.copy(alpha = 0.45f),
             ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.025f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
         border =
             ClickableSurfaceDefaults.border(
                 focusedBorder =
-                    Border(BorderStroke(2.dp, Accent), shape = RoundedCornerShape(12.dp))
+                    Border(BorderStroke(2.dp, focusColor), shape = RoundedCornerShape(12.dp))
             ),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center, content = content)

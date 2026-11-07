@@ -23,6 +23,7 @@ import dev.hatv.launcher.phone.PhoneSetupScreen
 
 @Composable
 fun SettingsPage(model: LauncherViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val saved by model.config.collectAsStateWithLifecycle()
     var c by remember(saved) { mutableStateOf(saved) }
     // Token is intentionally not saveable; never enters a saved-state Bundle or text log.
@@ -55,6 +56,22 @@ fun SettingsPage(model: LauncherViewModel) {
             }
             when {
                 section == "main" -> {
+                    item {
+                        Action(
+                            stringResource(R.string.system_settings),
+                            {
+                                runCatching {
+                                        context.startActivity(
+                                            android.content.Intent(
+                                                android.provider.Settings.ACTION_SETTINGS
+                                            )
+                                        )
+                                    }
+                                    .onFailure { model.message.value = it.message }
+                            },
+                            Modifier.fillMaxWidth(),
+                        )
+                    }
                     item {
                         Action(
                             stringResource(R.string.phone_setup),
@@ -208,6 +225,20 @@ fun SettingsPage(model: LauncherViewModel) {
                             Modifier.fillMaxWidth(),
                         )
                     }
+                    item {
+                        Action(
+                            stringResource(R.string.power_devices),
+                            { section = "powerDevices" },
+                            Modifier.fillMaxWidth(),
+                        )
+                    }
+                    item {
+                        Label(
+                            stringResource(R.string.auto_discovery_hint),
+                            color = Muted,
+                            size = 12,
+                        )
+                    }
                     item { Label(stringResource(R.string.devices), size = 16, bold = true) }
                     item { Field("Filter", filter, { filter = it }) }
                     items(
@@ -255,6 +286,36 @@ fun SettingsPage(model: LauncherViewModel) {
                     }
                     if (entities.isEmpty())
                         item { Label(stringResource(R.string.no_entities), color = Muted) }
+                }
+                section == "powerDevices" -> {
+                    item { Label(stringResource(R.string.power_devices), size = 20, bold = true) }
+                    item { Field("Filter", filter, { filter = it }) }
+                    items(
+                        entities.values
+                            .filter {
+                                it.domain == "sensor" &&
+                                    it.attributes.optString("unit_of_measurement") in
+                                        listOf("W", "kW", "MW") &&
+                                    (it.name.contains(filter, true) || it.id.contains(filter, true))
+                            }
+                            .sortedBy { it.name },
+                        key = { it.id },
+                    ) { entity ->
+                        val selected = entity.id in c.powerDevices
+                        Action(
+                            "${if (selected) "✓" else "+"} ${entity.name}",
+                            {
+                                c =
+                                    c.copy(
+                                        powerDevices =
+                                            if (selected) c.powerDevices - entity.id
+                                            else c.powerDevices + entity.id
+                                    )
+                            },
+                            Modifier.fillMaxWidth(),
+                            selected = selected,
+                        )
+                    }
                 }
                 section.startsWith("pick:") -> {
                     val role = section.substringAfter(':')

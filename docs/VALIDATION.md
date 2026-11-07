@@ -1,5 +1,20 @@
 # Validation
 
+## Version 0.3.0 — dashboard, rooms, calendar and cameras
+
+Validated on 7 November 2026 with the same Android TV API 34 / 1080p emulator and isolated JDK 17 toolchain.
+
+- Debug APK build, JVM tests and Android lint passed.
+- 17 JVM tests passed. Added room area inheritance/overrides, diagnostic exclusion, scene activation availability, all-day DST dates and backward-compatible configuration. Extended protocol coverage to WebRTC subscription events/unsubscribe/disconnect, recoverable command timeout, calendar REST authorization and snapshot REST authorization.
+- 8 Android tests passed using real D-pad/Select/Back events, including Climate/Calendar navigation, camera fullscreen, lights and native phone setup approval/persistence.
+- 3 Node AES-GCM protocol tests passed; bundled phone JavaScript rebuilt successfully. Browser UI verification for this update was unavailable because local browser use was disabled; the earlier 0.2.0 browser pass remains below.
+- Visually inspected Home, app banner grid, Climate, Calendar, Settings and German Home. Screenshots contain demo data only.
+- Debug demo PSS: 125,405 KiB (~122 MiB) after navigating screens; 117,490 KiB (~115 MiB) after five background/foreground cycles. One Activity and zero WebViews in both samples. This is a short emulator observation with cameras disabled, not a leak proof or a real-camera benchmark.
+- APK signing certificate matches the prior local build, allowing `adb install -r` updates from that build without losing app data.
+- HA MCP read inspection found configured areas, calendar entities and scenes, and the custom Energy Wall card. Both checked cameras advertise HLS and WebRTC. The connector rejects `camera/stream` as unsupported for its one-shot command tool, so live video/codec validation on the physical BRAVIA remains required. No HA configuration or device state was changed.
+
+Automatic HA-native WebRTC, HLS/decoder fallback, stream renewal, clipped TextureView rendering and labeled snapshot fallback are implemented. Protocol/lifecycle tests do not establish that either physical camera plays on the TV. Check both configured cameras after upgrading, preferably using low-resolution H.264 substreams where available.
+
 ## Version 0.2.0 — phone setup
 
 - 13 JVM tests passed, including AES-GCM integrity/replay/response binding and HTTP Host/Origin/body limits.

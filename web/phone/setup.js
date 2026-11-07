@@ -383,7 +383,7 @@ function renderEntities() {
         ["ev", text("EV charger", "E-Auto")],
         [
             "household",
-            text("Other household consumption", "Übriger Haushaltsverbrauch"),
+            text("Whole-home power", "Gesamtleistung Haus"),
         ],
     ];
     const selects = roles.map(([id, label]) => {
@@ -391,6 +391,10 @@ function renderEntities() {
         grid.append(target.box);
         return target;
     });
+    config.powerDevices ||= [];
+    const appliances = el("div");
+    const applianceTitle = el("h3", text("Measured appliances", "Gemessene Geräte"));
+    energy.append(applianceTitle, appliances);
     const count = el("p", "", { class: "note" });
     energy.append(count);
     energy.append(
@@ -414,6 +418,17 @@ function renderEntities() {
             });
             if (n !== version) return;
             for (const s of selects) fillSelect(s, r.entities);
+            appliances.replaceChildren();
+            for (const e of r.entities.filter(e => ["W", "kW", "MW"].includes(e.unit))) {
+                const label = el("label", undefined, { class: "check" });
+                const input = el("input", undefined, { type: "checkbox" });
+                input.checked = config.powerDevices.includes(e.id);
+                input.addEventListener("change", () => {
+                    config.powerDevices = input.checked ? [...config.powerDevices, e.id] : config.powerDevices.filter(id => id !== e.id);
+                });
+                label.append(input, document.createTextNode(e.name + " · " + e.unit));
+                appliances.append(label);
+            }
             count.textContent = text(
                 `${r.entities.length} of ${r.total} sensors shown. Refine the search if needed.`,
                 `${r.entities.length} von ${r.total} Sensoren. Bei Bedarf Suche eingrenzen.`,
@@ -432,7 +447,7 @@ function renderEntities() {
     loadPower();
     entityChecks(
         "controls",
-        text("3. Lights, switches & scenes", "3. Licht, Schalter und Szenen"),
+        text("3. Home controls", "3. Gerätesteuerung"),
     );
     entityChecks("camera", text("4. Cameras", "4. Kameras"));
 }
@@ -445,8 +460,8 @@ function entityChecks(domain, title) {
                   "Die ersten zwei ausgewählten Kameras erscheinen auf Home. Alle ausgewählten Kameras bleiben unter Kameras erreichbar.",
               )
             : text(
-                  "Selected entities appear in the matching dashboard panel and Devices screen.",
-                  "Ausgewählte Entitäten erscheinen im passenden Panel und unter Geräte.",
+                  "Selected controls appear on Home and Devices. Scenes, room climate and calendars are discovered automatically. Assign devices to rooms in Home Assistant.",
+                  "Ausgewählte Geräte erscheinen auf Home und Geräte. Szenen, Raumklima und Kalender werden automatisch erkannt. Geräte in Home Assistant Räumen zuordnen.",
               ),
     );
     const chosen = el("div"),

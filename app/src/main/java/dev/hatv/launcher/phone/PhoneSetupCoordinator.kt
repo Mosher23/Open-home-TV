@@ -204,6 +204,7 @@ class PhoneSetupCoordinator(
                                     weather = "",
                                     controls = emptyList(),
                                     energy = emptyMap(),
+                                    powerDevices = emptyList(),
                                     cameras = emptyList(),
                                 )
                         loaded = true
@@ -302,6 +303,20 @@ class PhoneSetupCoordinator(
                                 "Choose power sensors measured in W, kW or MW"
                             }
                             require(
+                                selection.powerDevices.size <= 40 &&
+                                    selection.powerDevices.distinct().size ==
+                                        selection.powerDevices.size &&
+                                    selection.powerDevices.all { id ->
+                                        discovered[id]?.let {
+                                            it.domain == "sensor" &&
+                                                it.attributes.optString("unit_of_measurement") in
+                                                    listOf("W", "kW", "MW")
+                                        } == true
+                                    }
+                            ) {
+                                "Choose up to 40 distinct appliance power sensors"
+                            }
+                            require(
                                 selection.cameras.size <= 12 &&
                                     selection.cameras.map { it.entityId }.distinct().size ==
                                         selection.cameras.size &&
@@ -316,6 +331,7 @@ class PhoneSetupCoordinator(
                                     weather = selection.weather,
                                     controls = selection.controls,
                                     energy = selection.energy,
+                                    powerDevices = selection.powerDevices,
                                     cameras =
                                         selection.cameras.map {
                                             it.copy(
@@ -361,6 +377,7 @@ class PhoneSetupCoordinator(
                     (draft.controls +
                             draft.weather +
                             draft.energy.values +
+                            draft.powerDevices +
                             draft.cameras.map { it.entityId })
                         .distinct()
                         .mapNotNull { discovered[it] }

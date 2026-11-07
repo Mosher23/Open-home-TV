@@ -28,6 +28,7 @@ class HomeAssistantClient(
             .followRedirects(false)
             .followSslRedirects(false)
             .build(),
+    private val commandTimeoutMs: Long = 15_000,
 ) {
     enum class Status {
         OFFLINE,
@@ -40,6 +41,7 @@ class HomeAssistantClient(
     val states = mutableStates.asStateFlow()
     private val mutableStatus = MutableStateFlow(Status.OFFLINE)
     val status = mutableStatus.asStateFlow()
+    private val rtcEvents = ConcurrentHashMap<Int, Channel<JSONObject>>()
     private val ids = AtomicInteger(0)
     private val pending = ConcurrentHashMap<Int, CompletableDeferred<JSONObject>>()
     @Volatile private var socket: WebSocket? = null
@@ -162,7 +164,19 @@ class HomeAssistantClient(
                                         } else pending.remove(id)?.complete(j)
                                     }
                                     "event" ->
-                                        if (snapshotLoaded) applyEvent(j)
+                                        if (rtcEvents.containsKey(j.optInt("id"))) {
+                                            val channel = rtcEvents[j.optInt("id")]
+                                            if (
+                                                channel
+                                                    ?.trySend(
+                                                        j.optJSONObject("event") ?: JSONObject()
+                                                    )
+                                                    ?.isSuccess == false
+                                            )
+                                                channel.close(
+                                                    IOException("Camera signaling buffer full")
+                                                )
+                                        } else if (snapshotLoaded) applyEvent(j)
                                         else {
                                             if (bufferedEvents.size >= 256)
                                                 throw IOException("Snapshot event buffer full")
@@ -173,6 +187,8 @@ class HomeAssistantClient(
                         } finally {
                             readyTimeout.cancel()
                         }
+                    } catch (_: TimeoutCancellationException) {
+                        // Handshake timeout is a recoverable connection failure.
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
@@ -186,6 +202,8 @@ class HomeAssistantClient(
                                 it.completeExceptionally(IOException("Connection closed"))
                             }
                             pending.clear()
+                            rtcEvents.values.forEach { it.close(IOException("Connection closed")) }
+                            rtcEvents.clear()
                         }
                     }
                     mutableStatus.value = if (authFailed) Status.AUTH_ERROR else Status.OFFLINE
@@ -213,6 +231,8 @@ class HomeAssistantClient(
         socket = null
         pending.values.forEach { it.cancel() }
         pending.clear()
+        rtcEvents.values.forEach { it.close(IOException("Connection closed")) }
+        rtcEvents.clear()
         mutableStatus.value = Status.OFFLINE
     }
 
@@ -227,7 +247,13 @@ class HomeAssistantClient(
                     JSONObject(args.toString()).put("id", id).put("type", type).toString()
                 ) == true
             )
-            val result = withTimeout(15_000) { response.await() }
+            val result =
+                try {
+                    withTimeout(commandTimeoutMs) { response.await() }
+                } catch (_: TimeoutCancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    throw IOException("Home Assistant command timed out")
+                }
             check(result.optBoolean("success")) {
                 result.optJSONObject("error")?.optString("code") ?: "Command failed"
             }
@@ -331,6 +357,160 @@ class HomeAssistantClient(
             }
         }
     }
+
+    class RtcSession(val events: Channel<JSONObject>, private val stop: () -> Unit) :
+        java.io.Closeable {
+        override fun close() = stop()
+    }
+
+    suspend fun cameraWebRtc(entityId: String, offer: String): RtcSession {
+        check(status.value == Status.ONLINE)
+        val ws = socket ?: error("Home Assistant is offline")
+        val id = ids.incrementAndGet()
+        val response = CompletableDeferred<JSONObject>()
+        val channel = Channel<JSONObject>(64)
+        pending[id] = response
+        rtcEvents[id] = channel
+        fun stop() {
+            if (rtcEvents.remove(id, channel) && socket === ws) {
+                ws.send(
+                    JSONObject()
+                        .put("id", ids.incrementAndGet())
+                        .put("type", "unsubscribe_events")
+                        .put("subscription", id)
+                        .toString()
+                )
+            }
+            channel.cancel()
+        }
+        try {
+            check(
+                ws.send(
+                    JSONObject()
+                        .put("id", id)
+                        .put("type", "camera/webrtc/offer")
+                        .put("entity_id", entityId)
+                        .put("offer", offer)
+                        .toString()
+                )
+            )
+            val result =
+                try {
+                    withTimeout(commandTimeoutMs) { response.await() }
+                } catch (_: TimeoutCancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    throw IOException("Home Assistant command timed out")
+                }
+            check(result.optBoolean("success")) { "Camera WebRTC signaling unavailable" }
+            return RtcSession(channel, ::stop)
+        } catch (e: Exception) {
+            stop()
+            throw e
+        } finally {
+            pending.remove(id)
+        }
+    }
+
+    suspend fun catalog(): HomeCatalog = coroutineScope {
+        suspend fun list(type: String): JSONArray =
+            try {
+                command(type).optJSONArray("result") ?: JSONArray()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                JSONArray()
+            }
+        val areas = async { list("config/area_registry/list") }
+        val devices = async { list("config/device_registry/list") }
+        val entities = async { list("config/entity_registry/list") }
+        fun JSONArray.objects() = (0 until length()).map { getJSONObject(it) }
+        fun JSONObject.text(key: String) = if (isNull(key)) "" else optString(key)
+        HomeCatalog(
+            areas.await().objects().associate { a ->
+                a.getString("area_id") to
+                    AreaInfo(
+                        a.getString("area_id"),
+                        a.getString("name"),
+                        a.text("temperature_entity_id"),
+                        a.text("humidity_entity_id"),
+                    )
+            },
+            entities.await().objects().associate { e ->
+                e.getString("entity_id") to
+                    EntityInfo(
+                        e.text("area_id"),
+                        e.text("device_id"),
+                        e.text("entity_category"),
+                        e.text("hidden_by").isNotBlank(),
+                        e.text("disabled_by").isNotBlank(),
+                    )
+            },
+            devices.await().objects().associate { d -> d.getString("id") to d.text("area_id") },
+        )
+    }
+
+    suspend fun calendarEvents(
+        entityId: String,
+        start: java.time.Instant,
+        end: java.time.Instant,
+        zone: java.time.ZoneId,
+    ): List<CalendarEvent> =
+        withContext(Dispatchers.IO) {
+            require(entityId.matches(Regex("calendar\\.[a-z0-9_]+")))
+            val url =
+                base
+                    .toHttpUrl()
+                    .newBuilder()
+                    .addPathSegments("api/calendars")
+                    .addPathSegment(entityId)
+                    .addQueryParameter("start", start.toString())
+                    .addQueryParameter("end", end.toString())
+                    .build()
+            http
+                .newCall(
+                    Request.Builder()
+                        .url(url)
+                        .header("Authorization", "Bearer $accessToken")
+                        .build()
+                )
+                .execute()
+                .use { response ->
+                    check(response.isSuccessful) { "Calendar returned HTTP ${response.code}" }
+                    val body = response.body ?: error("Empty calendar response")
+                    val source = body.source()
+                    require(!source.request(2L * 1024 * 1024 + 1)) {
+                        "Calendar response is too large"
+                    }
+                    parseCalendarEvents(entityId, JSONArray(source.readUtf8()), zone).take(500)
+                }
+        }
+
+    suspend fun cameraSnapshot(entityId: String): ByteArray =
+        withContext(Dispatchers.IO) {
+            require(entityId.matches(Regex("camera\\.[a-z0-9_]+")))
+            val url =
+                base
+                    .toHttpUrl()
+                    .newBuilder()
+                    .addPathSegments("api/camera_proxy")
+                    .addPathSegment(entityId)
+                    .addQueryParameter("width", "960")
+                    .build()
+            http
+                .newCall(
+                    Request.Builder()
+                        .url(url)
+                        .header("Authorization", "Bearer $accessToken")
+                        .build()
+                )
+                .execute()
+                .use { response ->
+                    check(response.isSuccessful) { "Camera image unavailable" }
+                    val source = response.body?.source() ?: error("Empty camera image")
+                    require(!source.request(4L * 1024 * 1024 + 1)) { "Camera image is too large" }
+                    source.readByteArray()
+                }
+        }
 
     suspend fun stream(entityId: String): String {
         val reply =

@@ -63,3 +63,7 @@ CI runs the browser protocol tests and checks that the generated bundle matches 
 ```
 
 The fixture writes a temporary URL to `.tools/phone-preview.json`. Use `fixture-token` for its simulated HA connection. It automatically approves its test browser; production always requires TV approval. Applying writes a fixture result and stops the preview.
+
+## Version 0.3.0 discovery
+
+Scenes, calendars and room climate are discovered automatically. Assign devices to HA areas to group room controls; only lights/switches and Home shortcuts need manual selection. Map **Whole home** to your whole-home power meter, select optional flows, and choose individual **Measured appliances**. Leave unused power roles empty; they are hidden. Existing saved URL/token, app order and camera selections are retained on an update signed with the same key. Leave camera endpoint overrides empty to use HA-native WebRTC automatically, followed by HLS and a labeled snapshot fallback.

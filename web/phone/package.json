@@ -1,7 +1,7 @@
 {
     "name": "open-home-tv-phone-setup",
     "private": true,
-    "version": "0.2.0",
+    "version": "0.3.0",
     "type": "module",
     "scripts": {
         "build": "esbuild setup.js --bundle --minify --target=es2020 --outfile=../../app/src/main/assets/phone/setup.js --legal-comments=linked",

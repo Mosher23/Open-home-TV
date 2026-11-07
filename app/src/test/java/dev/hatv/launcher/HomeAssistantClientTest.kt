@@ -46,6 +46,21 @@ class HomeAssistantClientTest {
                                         """{"id":$id,"type":"result","success":true,"result":[{"entity_id":"light.desk","state":"off","attributes":{}}]}"""
                                     )
                                 }
+                                "camera/webrtc/offer" -> {
+                                    ws.send(
+                                        """{"id":$id,"type":"result","success":true,"result":null}"""
+                                    )
+                                    ws.send(
+                                        """{"id":$id,"type":"event","event":{"type":"session","session_id":"test-session"}}"""
+                                    )
+                                    ws.send(
+                                        """{"id":$id,"type":"event","event":{"type":"answer","answer":"test-sdp"}}"""
+                                    )
+                                }
+                                "unsubscribe_events" ->
+                                    ws.send(
+                                        """{"id":$id,"type":"result","success":true,"result":null}"""
+                                    )
                                 "camera/stream" ->
                                     ws.send(
                                         """{"id":$id,"type":"result","success":true,"result":{"url":"/api/hls/test/master_playlist.m3u8"}}"""
@@ -56,16 +71,54 @@ class HomeAssistantClientTest {
                 )
         )
         server.start()
-        val client = HomeAssistantClient(scope)
+        val client = HomeAssistantClient(scope, commandTimeoutMs = 1000)
         try {
             client.connect(server.url("/").toString(), "local-test-token")
             withTimeout(5000) { client.status.first { it == HomeAssistantClient.Status.ONLINE } }
             assertEquals("on", client.states.value["light.desk"]?.state)
+            val timeout = runCatching { client.command("no_reply") }.exceptionOrNull()
+            assertTrue(timeout is java.io.IOException)
+            assertTrue(currentCoroutineContext().isActive)
+            assertEquals(HomeAssistantClient.Status.ONLINE, client.status.value)
             assertEquals(
                 server.url("/api/hls/test/master_playlist.m3u8").toString(),
                 client.stream("camera.test"),
             )
+            server.enqueue(
+                MockResponse()
+                    .setBody(
+                        """[{"summary":"Meeting","start":{"dateTime":"2026-11-07T12:00:00+01:00"},"end":{"dateTime":"2026-11-07T13:00:00+01:00"}}]"""
+                    )
+            )
+            val events =
+                client.calendarEvents(
+                    "calendar.home",
+                    java.time.Instant.parse("2026-11-07T00:00:00Z"),
+                    java.time.Instant.parse("2026-11-14T00:00:00Z"),
+                    java.time.ZoneId.of("Europe/Berlin"),
+                )
+            assertEquals("Meeting", events.single().title)
+            server.takeRequest(2, TimeUnit.SECONDS) // WebSocket upgrade
+            val calendarRequest = server.takeRequest(2, TimeUnit.SECONDS)!!
+            assertEquals("/api/calendars/calendar.home", calendarRequest.requestUrl!!.encodedPath)
+            assertEquals("Bearer local-test-token", calendarRequest.getHeader("Authorization"))
+            assertEquals("2026-11-14T00:00:00Z", calendarRequest.requestUrl!!.queryParameter("end"))
+            server.enqueue(MockResponse().setBody(okio.Buffer().write(byteArrayOf(1, 2, 3))))
+            assertArrayEquals(byteArrayOf(1, 2, 3), client.cameraSnapshot("camera.test"))
+            val snapshotRequest = server.takeRequest(2, TimeUnit.SECONDS)!!
+            assertEquals("/api/camera_proxy/camera.test", snapshotRequest.requestUrl!!.encodedPath)
+            assertEquals("Bearer local-test-token", snapshotRequest.getHeader("Authorization"))
+            val rtc = client.cameraWebRtc("camera.test", "offer-sdp")
+            withTimeout(2000) {
+                assertEquals("session", rtc.events.receive().getString("type"))
+                assertEquals("test-sdp", rtc.events.receive().getString("answer"))
+            }
+            rtc.close()
+            assertTrue(rtc.events.receiveCatching().isClosed)
+            val active = client.cameraWebRtc("camera.test", "offer-sdp")
             client.disconnect()
+            // Disconnect closes active signaling sessions as well as command waiters.
+            withTimeout(2000) { while (!active.events.receiveCatching().isClosed) {} }
             assertEquals(HomeAssistantClient.Status.OFFLINE, client.status.value)
         } finally {
             client.disconnect()

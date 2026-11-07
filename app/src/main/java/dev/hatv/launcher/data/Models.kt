@@ -12,7 +12,7 @@ data class Entity(val id: String, val state: String, val attributes: JSONObject 
         get() = id.substringBefore('.')
 
     val available: Boolean
-        get() = state != "unavailable" && state != "unknown"
+        get() = state != "unavailable" && (domain == "scene" || state != "unknown")
 
     fun number(key: String): Double? = attributes.opt(key)?.toString()?.toDoubleOrNull()
 
@@ -39,6 +39,7 @@ data class Config(
     val weather: String = "",
     val controls: List<String> = emptyList(),
     val energy: Map<String, String> = emptyMap(),
+    val powerDevices: List<String> = emptyList(),
     val cameras: List<CameraConfig> = emptyList(),
     val apps: List<AppShortcut> = emptyList(),
     val animate: Boolean = true,
@@ -118,11 +119,42 @@ object Demo {
                     "climate.living_room",
                     "heat",
                     JSONObject()
-                        .put("friendly_name", "Wohnzimmer")
+                        .put("friendly_name", "Living Room · Thermostat")
+                        .put("area_id", "living_room")
+                        .put("current_temperature", 21.2)
+                        .put("current_humidity", 47)
+                        .put("hvac_modes", JSONArray(listOf("off", "heat", "auto")))
                         .put("temperature", 21.5)
                         .put("min_temp", 7)
                         .put("max_temp", 30)
                         .put("target_temp_step", 0.5),
+                ),
+                Entity(
+                    "sensor.living_room_co2",
+                    "630",
+                    JSONObject()
+                        .put("friendly_name", "Living Room · Air quality")
+                        .put("area_id", "living_room")
+                        .put("device_class", "carbon_dioxide")
+                        .put("unit_of_measurement", "ppm"),
+                ),
+                Entity(
+                    "sensor.living_room_pm25",
+                    "4",
+                    JSONObject()
+                        .put("friendly_name", "Living Room · Air quality")
+                        .put("area_id", "living_room")
+                        .put("device_class", "pm25")
+                        .put("unit_of_measurement", "µg/m³"),
+                ),
+                Entity(
+                    "cover.living_room",
+                    "open",
+                    JSONObject()
+                        .put("friendly_name", "Living Room · Shutters")
+                        .put("area_id", "living_room")
+                        .put("supported_features", 15)
+                        .put("current_position", 100),
                 ),
                 Entity("scene.home", "scening", JSONObject().put("friendly_name", "Zu Hause")),
                 Entity("scene.evening", "scening", JSONObject().put("friendly_name", "Abend")),
@@ -150,7 +182,7 @@ object Demo {
                     "grid" to 0.0,
                     "heat_pump" to 2.1,
                     "ev" to 1.6,
-                    "household" to 1.3,
+                    "household" to 5.0,
                 )
                 .associate { (key, value) ->
                     "sensor.$key" to

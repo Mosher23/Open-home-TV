@@ -1,6 +1,5 @@
 package dev.hatv.launcher.ui
 
-import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -8,6 +7,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -17,13 +19,17 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
@@ -60,6 +66,8 @@ fun Launcher(model: LauncherViewModel) {
             "scenes" to R.string.scenes,
             "devices" to R.string.devices,
             "cameras" to R.string.cameras,
+            "climate" to R.string.climate,
+            "calendar" to R.string.calendar,
             "settings" to R.string.settings,
         )
     val icons =
@@ -69,6 +77,8 @@ fun Launcher(model: LauncherViewModel) {
             Icons.Outlined.PlayCircle,
             Icons.Outlined.Devices,
             Icons.Outlined.Videocam,
+            Icons.Outlined.Thermostat,
+            Icons.Outlined.CalendarMonth,
             Icons.Outlined.Settings,
         )
     BackHandler {
@@ -108,14 +118,15 @@ fun Launcher(model: LauncherViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
                         Column(
-                            Modifier.width(132.dp).fillMaxHeight(),
+                            Modifier.width(52.dp).fillMaxHeight(),
                             verticalArrangement = Arrangement.spacedBy(7.dp),
                         ) {
                             menu.forEachIndexed { i, (route, label) ->
                                 Tile(
                                     { page = route },
                                     Modifier.fillMaxWidth()
-                                        .height(38.dp)
+                                        .semantics { contentDescription = context.getString(label) }
+                                        .height(42.dp)
                                         .then(
                                             if (i == 0)
                                                 Modifier.focusRequester(homeFocus)
@@ -125,34 +136,17 @@ fun Launcher(model: LauncherViewModel) {
                                     selected = page == route,
                                     color = Color.Transparent,
                                 ) {
-                                    Row(
-                                        Modifier.fillMaxWidth().padding(horizontal = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    ) {
-                                        Icon(
-                                            icons[i],
-                                            null,
-                                            Modifier.size(19.dp),
-                                            tint = if (page == route) Color.White else Muted,
-                                        )
-                                        Label(stringResource(label), size = 13)
-                                    }
+                                    Icon(
+                                        icons[i],
+                                        null,
+                                        Modifier.size(23.dp),
+                                        tint = if (page == route) Color.White else Muted,
+                                    )
                                 }
                             }
                             Spacer(Modifier.weight(1f))
-                            Action(
-                                stringResource(R.string.system_settings),
-                                {
-                                    runCatching {
-                                            context.startActivity(Intent(Settings.ACTION_SETTINGS))
-                                        }
-                                        .onFailure { model.message.value = it.message }
-                                },
-                                Modifier.fillMaxWidth().height(50.dp),
-                            )
                             Label(
-                                "OPEN HOME TV  /  ${dev.hatv.launcher.BuildConfig.VERSION_NAME}",
+                                dev.hatv.launcher.BuildConfig.VERSION_NAME,
                                 size = 8,
                                 color = Muted,
                             )
@@ -167,13 +161,17 @@ fun Launcher(model: LauncherViewModel) {
                                             entities,
                                             { page = "apps" },
                                             { fullscreen = it },
+                                            { page = "power" },
                                         )
+                                    "power" -> PowerPage(config, entities)
                                     "apps" -> AppsPage(model, config)
                                     "scenes",
                                     "devices" ->
                                         DevicePage(model, config, entities, page == "scenes")
                                     "cameras" ->
                                         CamerasPage(model, config, entities, { fullscreen = it })
+                                    "climate" -> RoomsPage(model, config)
+                                    "calendar" -> CalendarPage(model, config)
                                     "settings" -> SettingsPage(model)
                                 }
                         }
@@ -238,7 +236,6 @@ private fun Header(model: LauncherViewModel, c: Config, entities: Map<String, En
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Label("Powered by Home Assistant", size = 11, color = Muted)
                 Label(
                     "●",
                     size = 10,
@@ -289,12 +286,9 @@ private fun HomeDashboard(
     entities: Map<String, Entity>,
     allApps: () -> Unit,
     openCamera: (CameraConfig) -> Unit,
+    openPower: () -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-            Label(stringResource(R.string.apps), size = 15, bold = true)
-            AppRow(model, c, allApps)
-        }
         // First three widget slots are large; last three compact. Order is persisted by Settings.
         Row(
             Modifier.weight(1.6f).fillMaxWidth(),
@@ -311,6 +305,7 @@ private fun HomeDashboard(
                         )
                         .fillMaxHeight(),
                     openCamera,
+                    openPower,
                 )
             }
         }
@@ -326,9 +321,11 @@ private fun HomeDashboard(
                     entities,
                     Modifier.weight(if (key == "climate") .85f else 1.3f).fillMaxHeight(),
                     openCamera,
+                    openPower,
                 )
             }
         }
+        AppRow(model, c, allApps)
     }
 }
 
@@ -340,17 +337,18 @@ private fun Widget(
     entities: Map<String, Entity>,
     modifier: Modifier,
     openCamera: (CameraConfig) -> Unit,
+    openPower: () -> Unit = {},
 ) {
     val selected = if (c.demo) entities.values.toList() else c.controls.mapNotNull { entities[it] }
     when (key) {
-        "energy" -> EnergyCard(c, entities, modifier)
+        "energy" -> EnergyCard(c, entities, modifier, openPower)
         "weather" -> WeatherCard(model, c, entities, modifier)
         "cameras" -> CameraCard(model, c, entities, modifier, openCamera)
         "scenes" ->
             ControlsCard(
                 stringResource(R.string.scenes),
                 Icons.Outlined.PlayCircle,
-                selected.filter { it.domain == "scene" },
+                entities.values.filter { it.domain == "scene" }.sortedBy { it.name },
                 model,
                 modifier,
                 c,
@@ -365,64 +363,91 @@ private fun Widget(
                 c,
             )
         "climate" ->
-            ClimateCard(selected.firstOrNull { it.domain == "climate" }, model, modifier, c)
+            ClimateCard(
+                selected.firstOrNull { it.domain == "climate" }
+                    ?: entities.values.firstOrNull { it.domain == "climate" },
+                model,
+                modifier,
+                c,
+            )
     }
 }
 
 @Composable
 fun AppRow(model: LauncherViewModel, c: Config, allApps: () -> Unit) {
     val installed by model.installed.collectAsStateWithLifecycle()
-    val demoNames = listOf("YouTube", "Disney+", "Apple TV", "arte", "ARD", "ZDF")
     LazyRow(
-        Modifier.fillMaxWidth().height(56.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(3.dp),
+        Modifier.fillMaxWidth().height(88.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(5.dp),
     ) {
         if (c.demo && c.apps.isEmpty())
-            items(demoNames) { name ->
-                Tile(
-                    { model.message.value = "Demo app · choose installed apps in Settings" },
-                    Modifier.width(99.dp).fillMaxHeight(),
-                    color =
-                        when (name) {
-                            "arte" -> Color(0xFFFD5305)
-                            "Disney+",
-                            "ARD" -> Color(0xFF102258)
-                            else -> Color(0xFF111923)
-                        },
-                ) {
-                    Label(name, size = if (name == "arte") 23 else 16, bold = true)
+            items(listOf("YouTube", "Disney+", "Apple TV", "arte", "ARD", "ZDF")) { name ->
+                AppBanner(null, name, "", Modifier.width(130.dp).fillMaxHeight()) {
+                    model.message.value = "Demo app · choose installed apps in Settings"
                 }
             }
         else
             items(c.apps, key = { it.id }) { shortcut ->
                 val app = installed.find { it.id == shortcut.id }
-                Tile({ model.launchApp(shortcut.id) }, Modifier.width(99.dp).fillMaxHeight()) {
-                    Row(
-                        Modifier.padding(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        val bitmap =
-                            remember(app?.id) { app?.icon?.toBitmap(40, 40)?.asImageBitmap() }
-                        if (shortcut.icon.isNotBlank()) Label(shortcut.icon.take(3), size = 19)
-                        else bitmap?.let { Image(it, null, Modifier.size(24.dp)) }
-                        Label(
-                            shortcut.label.ifBlank { app?.name ?: "Unavailable" },
-                            size = 11,
-                            bold = true,
-                        )
-                    }
+                AppBanner(
+                    app,
+                    shortcut.label.ifBlank { app?.name ?: shortcut.id.substringAfterLast('/') },
+                    shortcut.icon,
+                    Modifier.width(130.dp).fillMaxHeight(),
+                ) {
+                    model.launchApp(shortcut.id)
                 }
             }
         item {
-            Tile(allApps, Modifier.width(94.dp).fillMaxHeight(), color = Color(0x88303A50)) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Outlined.Apps, null, Modifier.size(20.dp), tint = Color.White)
-                    Label(stringResource(R.string.all_apps), size = 10)
+            Tile(allApps, Modifier.width(95.dp).fillMaxHeight(), color = Color(0xCC293344)) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                ) {
+                    Icon(Icons.Outlined.Apps, null, Modifier.size(26.dp), tint = Color.White)
+                    Label(stringResource(R.string.all_apps), size = 12)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AppBanner(
+    app: InstalledApp?,
+    title: String,
+    initials: String,
+    modifier: Modifier,
+    launch: () -> Unit,
+) {
+    val banner = remember(app?.id) { app?.banner?.toBitmap(320, 180)?.asImageBitmap() }
+    val icon = remember(app?.id) { app?.icon?.toBitmap(96, 96)?.asImageBitmap() }
+    val colors = listOf(Color(0xFF233E65), Color(0xFF35314F), Color(0xFF1F4C50), Color(0xFF343F54))
+    Tile(
+        launch,
+        modifier.semantics { contentDescription = title },
+        color = colors[(title.hashCode() and Int.MAX_VALUE) % colors.size],
+        focusedScale = 1.08f,
+        focusColor = Color.White,
+    ) {
+        if (banner != null && initials.isBlank())
+            Image(banner, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else
+            Column(
+                Modifier.fillMaxSize().padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                if (initials.isNotBlank()) Label(initials.take(3), size = 28, bold = true)
+                else if (icon != null) Image(icon, null, Modifier.size(42.dp))
+                Label(
+                    title,
+                    Modifier.padding(top = 5.dp),
+                    size = if (icon == null) 18 else 11,
+                    bold = true,
+                )
+            }
     }
 }
 
@@ -633,7 +658,11 @@ private fun CameraCard(
         else c.cameras.take(2)
     PanelCard(stringResource(R.string.cameras), Icons.Outlined.Videocam, modifier, c.darkPanels) {
         cameras.forEach { camera ->
-            Tile({ openCamera(camera) }, Modifier.weight(1f).fillMaxWidth(), color = Ink) {
+            Tile(
+                { openCamera(camera) },
+                Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(12.dp)),
+                color = Ink,
+            ) {
                 if (!c.demo && c.livePreviews) CameraPlayer(camera, model, Modifier.fillMaxSize())
                 else
                     Column(
@@ -665,34 +694,37 @@ private fun CameraCard(
 @Composable
 private fun AppsPage(model: LauncherViewModel, c: Config) {
     val apps by model.installed.collectAsStateWithLifecycle()
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(9.dp),
-        contentPadding = PaddingValues(5.dp),
-    ) {
-        item { Label(stringResource(R.string.all_apps), size = 24, bold = true) }
-        items(apps, key = { it.id }) { app ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Action(app.name, { model.launchApp(app.id) }, Modifier.weight(1f))
-                val selected = c.apps.any { it.id == app.id }
-                Action(
-                    if (selected) "✓" else "+",
-                    {
-                        model.update(
-                            c.copy(
-                                apps =
-                                    if (selected) c.apps.filterNot { it.id == app.id }
-                                    else c.apps + AppShortcut(app.id)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Label(stringResource(R.string.all_apps), size = 24, bold = true)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(5),
+            contentPadding = PaddingValues(7.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            items(apps, key = { it.id }) { app ->
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    AppBanner(app, app.name, "", Modifier.fillMaxWidth().aspectRatio(16f / 9)) {
+                        model.launchApp(app.id)
+                    }
+                    Label(app.name, size = 12)
+                    val pinned = c.apps.any { it.id == app.id }
+                    Action(
+                        stringResource(if (pinned) R.string.unpin_app else R.string.pin_app),
+                        {
+                            model.update(
+                                c.copy(
+                                    apps =
+                                        if (pinned) c.apps.filterNot { it.id == app.id }
+                                        else c.apps + AppShortcut(app.id)
+                                )
                             )
-                        )
-                    },
-                    selected = selected,
-                )
+                        },
+                        selected = pinned,
+                    )
+                }
             }
         }
-        if (apps.isEmpty()) item { Label("No launchable apps found", color = Muted) }
     }
 }
 
@@ -704,7 +736,7 @@ private fun DevicePage(
     scenes: Boolean,
 ) {
     val selected =
-        (if (c.demo) entities.values else c.controls.mapNotNull { entities[it] }).filter {
+        (if (c.demo || scenes) entities.values else c.controls.mapNotNull { entities[it] }).filter {
             if (scenes) it.domain == "scene"
             else it.domain in listOf("light", "switch", "cover", "climate")
         }

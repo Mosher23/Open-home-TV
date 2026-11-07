@@ -33,13 +33,13 @@ class RemoteNavigationTest {
     @Test
     fun dpadReachesSettingsAndAllConnectionActions() {
         home()
-        repeat(5) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
+        repeat(7) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         ui.onNodeWithText("Home Assistant server URL").assertIsDisplayed()
         ui.onAllNodesWithText("Save").onFirst().assertIsDisplayed()
         ui.onNodeWithText("Forget saved token").assertIsDisplayed()
         key(KeyEvent.KEYCODE_BACK)
-        ui.onNodeWithText("Home energy · now").assertIsDisplayed()
+        ui.onNodeWithText("Home power").assertIsDisplayed()
     }
 
     @Test
@@ -52,7 +52,7 @@ class RemoteNavigationTest {
         ui.onNodeWithText("Demo camera · no live stream").assertIsDisplayed()
         key(KeyEvent.KEYCODE_BACK)
         home()
-        ui.onNodeWithText("Home energy · now").assertIsDisplayed()
+        ui.onNodeWithText("Home power").assertIsDisplayed()
     }
 
     @Test
@@ -70,9 +70,26 @@ class RemoteNavigationTest {
     }
 
     @Test
-    fun phoneSetupShowsQrAndBackClosesTheListener() {
+    fun remoteReachesRoomClimateAndCalendar() {
         home()
         repeat(5) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        ui.onNodeWithText("CO₂").assertIsDisplayed()
+        ui.onNodeWithText("PM2.5").assertIsDisplayed()
+        ui.onNodeWithText("Living Room · Shutters").assertIsDisplayed()
+        key(KeyEvent.KEYCODE_BACK)
+        repeat(6) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        ui.onNodeWithText("Family dinner").assertIsDisplayed()
+        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        key(KeyEvent.KEYCODE_BACK)
+        ui.onNodeWithText("Home power").assertIsDisplayed()
+    }
+
+    @Test
+    fun phoneSetupShowsQrAndBackClosesTheListener() {
+        home()
+        repeat(7) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         ui.onNodeWithText("Set up with your phone").performSemanticsAction(
             SemanticsActions.RequestFocus

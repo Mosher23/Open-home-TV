@@ -19,3 +19,5 @@ captures/
 .cxx/
 
 node_modules/
+
+.superdesign/

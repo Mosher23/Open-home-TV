@@ -2,11 +2,11 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.2.0 — phone setup added.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.3.0 — TV layout refresh, room climate and calendar.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
-[German screenshot](docs/images/dashboard-de.png) · [Settings screenshot](docs/images/settings-en.png)
+[Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Calendar](docs/images/calendar-en.png) · [German](docs/images/dashboard-de.png) · [Settings](docs/images/settings-en.png)
 
 ## Set up with your phone
 
@@ -19,11 +19,13 @@ Use a trusted private home network. Setup API payloads are encrypted; the local 
 ## Dashboard
 
 - Dark translucent cards, a static vector dusk landscape, 16:9 layout scaled for 1080p/4K, visible D-pad focus and English/German system localization.
-- User-selected installed TV apps, ordering, custom labels/icon initials and HDMI shortcuts when the TV exposes passthrough inputs. The Apps screen retains access to all discovered launchable apps.
+- Bottom app dock and Apple TV inspired banner grid, using installed app artwork. Pin/unpin apps from the grid; order, labels and icon initials remain configurable. HDMI shortcuts appear when the TV exposes passthrough inputs. Icon-only navigation retains accessible names. Android TV settings are inside Settings.
 - HA weather entity, current temperature/humidity/wind, hourly/daily forecasts and Celsius/Fahrenheit display.
-- Animated Canvas energy flows for solar, grid, battery, EV, heat pump and household. Configure sensors in W/kW/MW. Negative battery/grid power reverses animation; missing data stays missing.
-- Scenes, lights, switches, covers and climate temperature controls with real-time HA state updates and unavailable-state handling.
-- Camera fullscreen playback, optional two-feed dashboard previews, go2rtc WebRTC preference and Media3 HLS fallback. Cameras stop when hidden. Demo camera tiles are explicitly labeled; they do not pretend to show a live feed.
+- Home power: measured whole-home power, optional solar/grid/battery flows and heat-pump/EV/appliance readings, inspired by the HA Energy Wall. Unconfigured nodes are omitted. Select W/kW/MW sensors and measured appliances on the phone or TV; select the power card for the full appliance list. Negative grid/battery values reverse flow.
+- All HA scenes appear automatically, including scenes never activated before. Lights and switches remain configurable.
+- Climate groups sensors and controls by HA area, inheriting device areas when needed: temperature, humidity, CO₂, PM2.5, thermostat setpoint/modes/presets, and supported cover open/stop/close actions. Hidden and diagnostic entities are excluded.
+- Calendar automatically discovers visible HA calendars and loads a seven-day agenda on demand, with calendar filters, all-day dates in HA’s time zone, event details, partial-failure reporting and Refresh.
+- Camera fullscreen playback and optional two-feed dashboard previews. Automatic HA-native WebRTC, optional explicit go2rtc endpoint, then Media3 HLS fallback. Cropped video fills cards. If video fails, a labeled snapshot refreshes every five seconds while HLS retries; it is never labeled live. Cameras stop when hidden.
 - HA URL/token settings, connection testing, entity selection, camera endpoints, app selection, widget order, panel appearance and optional animation.
 - Android TV HOME registration, normal TV app entry, Android settings access, and safe return to the stock launcher.
 
@@ -64,15 +66,21 @@ The recommended route is [phone setup](docs/PHONE-SETUP.md). Manual entry with t
 3. Enter the local HA server URL and token in launcher Settings. Test the connection. Disable Demo mode and Save to connect.
 4. Reopen Settings → Choose entities. Pick weather, power sensors, controls and cameras. Camera selection is independent of controls.
 5. Back to the main Settings screen and **Save**. Selection changes remain a draft until saved. Widget selection moves that widget to the first slot within its row.
-6. For WebRTC, optionally enter a go2rtc HTTP SDP endpoint such as `http://go2rtc.local:1984/api/webrtc?src=front_door`. Leave HLS blank to request a stream from HA. Preview streams opt in; they are disabled by default to save RAM.
+6. Leave both camera endpoints blank for automatic HA-native WebRTC with HLS fallback. Optionally override with a go2rtc HTTP SDP endpoint such as `http://go2rtc.local:1984/api/webrtc?src=front_door`. Leave HLS blank to request a stream from HA. Preview streams opt in; they are disabled by default to save RAM.
 
 The token is encrypted with AES/GCM using Android Keystore and excluded from backups. Standard TLS validation is enforced. HTTP is allowed for local compatibility and sends the token without transport encryption; use HTTPS when available. Changing the server URL requires re-entering a saved token. Tokens are never sent to a different camera origin. Camera URLs must not contain embedded username/password credentials. Settings are private app data.
 
 HA REST is used for connection tests/service actions; one authenticated WebSocket provides entity subscriptions, stream requests and forecasts. It reconnects with bounded exponential backoff and stops retrying invalid credentials. All subscriptions and forecast work stop while the Activity is hidden. App shortcuts work independently of HA.
 
+## Automatic discovery and power setup
+
+Assign devices to areas in HA for room grouping. Entity area overrides device area; unassigned controls remain available under Other devices. Configure the area’s temperature/humidity sensor in HA to prioritize it. Scenes and calendars need no manual entity selection. Registry access may require an HA administrator token; if denied, the launcher retains controls and uses available entity naming/area attributes for grouping.
+
+For power, map **Whole home** to the actual whole-home meter. Leave unused solar/grid/battery/EV/heat-pump roles empty. Select **Measured appliances** separately; avoid aggregate meters and duplicates that would count the same consumption twice. Appliance readings are independently measured and may not sum to the whole-home reading. No individual sensor IDs from a private installation are built into the app.
+
 ## Camera and hardware limits
 
-- WebRTC implements go2rtc's HTTP SDP endpoint using the device's Android System WebView. Native HA WebRTC signaling is not implemented; cameras without a go2rtc endpoint use HA HLS.
+- WebRTC uses Android System WebView and HA camera capabilities/client configuration, offer subscription, answer and ICE candidate events. Older HA versions without these commands fall back to HLS. An explicit go2rtc HTTP SDP endpoint remains supported.
 - Direct LAN ICE is used with no external STUN/TURN service. WebView support, codecs, camera integration, LAN routing and TV decoder limits determine playback compatibility. HLS is the fallback.
 - At most two preview players or one fullscreen player are active. Prefer low-resolution camera substreams. Additional selected cameras are accessible from the Cameras screen without starting hidden streams.
 - Sony default-launcher restrictions and HDMI visibility vary by firmware. They cannot be bypassed by a normal application.

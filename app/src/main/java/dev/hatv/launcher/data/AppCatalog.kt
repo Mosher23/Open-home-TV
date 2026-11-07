@@ -7,7 +7,13 @@ import android.graphics.drawable.Drawable
 import android.media.tv.TvContract
 import android.media.tv.TvInputManager
 
-data class InstalledApp(val id: String, val name: String, val icon: Drawable?, val intent: Intent)
+data class InstalledApp(
+    val id: String,
+    val name: String,
+    val icon: Drawable?,
+    val intent: Intent,
+    val banner: Drawable? = null,
+)
 
 class AppCatalog(private val context: Context) {
     fun discover(): List<InstalledApp> {
@@ -36,6 +42,7 @@ class AppCatalog(private val context: Context) {
                             .addCategory(Intent.CATEGORY_LAUNCHER)
                             .setComponent(component)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        runCatching { it.activityInfo.loadBanner(pm) }.getOrNull(),
                     )
                 }
         val inputs =

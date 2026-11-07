@@ -31,8 +31,11 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                         c.controls.toSet() +
                             c.weather +
                             c.energy.values +
+                            c.powerDevices +
                             c.cameras.map { it.entityId }
-                    all.filterKeys { it in selected }
+                    all.filter { (id, entity) ->
+                        id in selected || entity.domain in listOf("scene", "climate")
+                    }
                 }
             }
             .distinctUntilChanged()
@@ -48,11 +51,14 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         homeRequest.value += 1
     }
 
+    val catalog = MutableStateFlow(HomeCatalog())
+    val serverZone = MutableStateFlow(java.time.ZoneId.systemDefault())
+
     val serverTemperatureF = MutableStateFlow(false)
     val hourly = MutableStateFlow<List<Forecast>>(emptyList())
     val daily = MutableStateFlow<List<Forecast>>(emptyList())
     val installed = MutableStateFlow<List<InstalledApp>>(emptyList())
-    private val catalog = AppCatalog(app)
+    private val appCatalog = AppCatalog(app)
     val phoneSetup =
         PhoneSetupCoordinator(
             app,
@@ -81,6 +87,13 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                     forecastJob = launch {
                         try {
                             val reply = ha.command("get_config")
+                            serverZone.value =
+                                runCatching {
+                                        java.time.ZoneId.of(
+                                            reply.optJSONObject("result")?.optString("time_zone")
+                                        )
+                                    }
+                                    .getOrDefault(java.time.ZoneId.systemDefault())
                             serverTemperatureF.value =
                                 reply
                                     .optJSONObject("result")
@@ -91,6 +104,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                         } catch (_: Exception) {
                             serverTemperatureF.value = false
                         }
+                        catalog.value = ha.catalog()
                         while (isActive) {
                             refreshForecast()
                             delay(30 * 60_000L)
@@ -102,7 +116,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resume() {
         visible = true
-        viewModelScope.launch(Dispatchers.IO) { installed.value = catalog.discover() }
+        viewModelScope.launch(Dispatchers.IO) { installed.value = appCatalog.discover() }
         connect()
     }
 
@@ -115,6 +129,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun connect() {
         ha.disconnect()
+        catalog.value = HomeCatalog()
         if (config.value.demo) {
             hourly.value = Demo.hourly
             daily.value = Demo.daily
@@ -184,7 +199,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun launchApp(id: String) {
         val app = installed.value.find { it.id == id }
-        if (app == null || !catalog.launch(app)) message.value = "App unavailable"
+        if (app == null || !appCatalog.launch(app)) message.value = "App unavailable"
     }
 
     fun action(block: suspend () -> Unit) {
@@ -213,7 +228,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
             if (data.has("temperature")) attrs.put("temperature", data.getDouble("temperature"))
             demoStates.value =
                 demoStates.value + (entity.id to entity.copy(state = next, attributes = attrs))
-            if (entity.domain == "scene") message.value = "✓ ${entity.name}"
+            if (entity.domain in listOf("scene", "climate")) message.value = "✓ ${entity.name}"
         } else {
             require(ha.status.value == HomeAssistantClient.Status.ONLINE) {
                 "Home Assistant is offline"
