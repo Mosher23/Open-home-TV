@@ -81,6 +81,10 @@ class RemoteNavigationTest {
         repeat(6) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
         key(KeyEvent.KEYCODE_DPAD_CENTER)
         ui.onNodeWithText("Family dinner").assertIsDisplayed()
+        ui.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+        ui.activityRule.scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+        ui.waitForIdle()
+        ui.onNodeWithText("Family dinner").assertIsDisplayed()
         key(KeyEvent.KEYCODE_DPAD_RIGHT)
         key(KeyEvent.KEYCODE_BACK)
         ui.onNodeWithText("Home power").assertIsDisplayed()

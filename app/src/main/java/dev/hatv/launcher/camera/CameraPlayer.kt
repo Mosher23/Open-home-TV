@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.media3.common.MediaItem
@@ -36,6 +37,7 @@ import dev.hatv.launcher.R
 import dev.hatv.launcher.data.CameraConfig
 import dev.hatv.launcher.ui.Label
 import dev.hatv.launcher.ui.Muted
+import dev.hatv.launcher.ui.StartedEffect
 import kotlinx.coroutines.*
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
@@ -56,7 +58,7 @@ fun CameraPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modif
                 else if (camera.hls.isNotBlank()) "hls" else "checking"
             )
         }
-    LaunchedEffect(camera, status) {
+    StartedEffect(camera, status) {
         if (mode == "checking") {
             mode =
                 try {
@@ -112,13 +114,14 @@ fun CameraPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modif
 @Composable
 private fun HlsPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modifier) {
     val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     var url by remember(camera) { mutableStateOf<String?>(null) }
     var failed by remember(camera) { mutableStateOf(false) }
     var buffering by remember(camera) { mutableStateOf(false) }
     var rendered by remember(camera) { mutableStateOf(false) }
     var error by remember(camera) { mutableStateOf("") }
     var retryIndex by remember(camera) { mutableIntStateOf(0) }
-    LaunchedEffect(camera, retryIndex) {
+    StartedEffect(camera, retryIndex) {
         failed = false
         rendered = false
         try {
@@ -183,7 +186,7 @@ private fun HlsPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: 
                     }
             }
         }
-    DisposableEffect(player) {
+    DisposableEffect(player, lifecycle) {
         val listener =
             object : Player.Listener {
                 override fun onPlayerError(exception: PlaybackException) {
@@ -206,12 +209,27 @@ private fun HlsPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: 
                 }
             }
         player?.addListener(listener)
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> {
+                    player?.prepare()
+                    player?.playWhenReady = true
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    player?.stop()
+                    rendered = false
+                }
+                else -> Unit
+            }
+        }
+        lifecycle.addObserver(observer)
         onDispose {
+            lifecycle.removeObserver(observer)
             player?.removeListener(listener)
             player?.release()
         }
     }
-    LaunchedEffect(player, rendered, failed, buffering) {
+    StartedEffect(player, rendered, failed, buffering) {
         if (!rendered || failed || buffering) {
             // A silent decoder/network stall must not leave a permanent black card.
             delay(if (failed) 20_000 else 30_000)
@@ -254,7 +272,7 @@ private fun SnapshotFallback(
     var image by
         remember(camera) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
     var lastSuccess by remember(camera) { mutableLongStateOf(0L) }
-    LaunchedEffect(camera) {
+    StartedEffect(camera) {
         while (isActive) {
             try {
                 val bytes = model.ha.cameraSnapshot(camera.entityId)
@@ -322,6 +340,7 @@ private fun WebRtcPlayer(
     onFallback: () -> Unit,
 ) {
     val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val scope = rememberCoroutineScope()
     val main = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
     val currentFallback by rememberUpdatedState(onFallback)
@@ -355,6 +374,8 @@ private fun WebRtcPlayer(
                     RtcBridge(
                         { sdp ->
                             scope.launch {
+                                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+                                    return@launch
                                 try {
                                     if (entityId != null) {
                                         val session = model.ha.cameraWebRtc(entityId, sdp)
@@ -433,23 +454,39 @@ private fun WebRtcPlayer(
                     ),
                     "NativeRtc",
                 )
-                loadDataWithBaseURL(
-                    "https://localhost/",
-                    RTC_HTML.replace("__CHANNEL__", JSONObject.quote(dataChannel)),
-                    "text/html",
-                    "UTF-8",
-                    null,
-                )
             }
         }
     // Covers unsupported WebView WebRTC, ICE failure, incompatible codecs and silent signaling
     // failures.
-    LaunchedEffect(endpoint, entityId) {
+    StartedEffect(endpoint, entityId) {
         delay(12_000)
         web.evaluateJavascript("window.checkConnection()", null)
     }
-    DisposableEffect(web) {
+    DisposableEffect(web, lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> {
+                    web.onResume()
+                    web.loadDataWithBaseURL(
+                        "https://localhost/",
+                        RTC_HTML.replace("__CHANNEL__", JSONObject.quote(dataChannel)),
+                        "text/html",
+                        "UTF-8",
+                        null,
+                    )
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    scope.coroutineContext.cancelChildren()
+                    rtcSession.getAndSet(null)?.close()
+                    web.evaluateJavascript("window.stop()", null)
+                    web.onPause()
+                }
+                else -> Unit
+            }
+        }
+        lifecycle.addObserver(observer)
         onDispose {
+            lifecycle.removeObserver(observer)
             rtcSession.getAndSet(null)?.close()
             web.evaluateJavascript("window.stop()", null)
             web.removeJavascriptInterface("NativeRtc")

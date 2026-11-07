@@ -39,7 +39,7 @@ fun CalendarPage(model: LauncherViewModel, config: Config) {
     var failures by remember { mutableIntStateOf(0) }
     var detail by remember { mutableStateOf<CalendarEvent?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
-    LaunchedEffect(config.demo, config.server, status, ids, refresh) {
+    StartedEffect(config.demo, config.server, status, ids, refresh, zone) {
         if (config.demo) {
             val now = Instant.now()
             events =
@@ -60,9 +60,9 @@ fun CalendarPage(model: LauncherViewModel, config: Config) {
                         true,
                     ),
                 )
-            return@LaunchedEffect
+            return@StartedEffect
         }
-        if (status != HomeAssistantClient.Status.ONLINE) return@LaunchedEffect
+        if (status != HomeAssistantClient.Status.ONLINE) return@StartedEffect
         while (isActive) {
             loading = true
             failures = 0

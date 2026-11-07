@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.tv.material3.*
 
 val Ink = Color(0xFF090F19)
@@ -116,5 +117,14 @@ fun PanelCard(
             Label(title, size = 14, bold = true)
         }
         content()
+    }
+}
+
+// Cancels work directly from lifecycle events, even while Compose's frame clock is paused.
+@Composable
+fun StartedEffect(vararg keys: Any?, block: suspend kotlinx.coroutines.CoroutineScope.() -> Unit) {
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(*keys, lifecycle) {
+        lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED, block)
     }
 }
