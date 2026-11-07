@@ -27,8 +27,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -45,6 +47,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 @Composable
@@ -740,75 +743,143 @@ private fun DevicePage(
             if (scenes) it.domain == "scene"
             else it.domain in listOf("light", "switch", "cover", "climate")
         }
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(5.dp),
-    ) {
-        item {
-            Label(
-                stringResource(if (scenes) R.string.scenes else R.string.devices),
-                size = 24,
-                bold = true,
-            )
-        }
-        items(selected, key = { it.id }) { entity ->
-            Column(
-                Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp)).padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val kinds = listOf("light", "switch", "cover", "climate")
+    val groups = selected.groupBy { it.domain }
+    var category by rememberSaveable { mutableStateOf("all") }
+    val active = category.takeIf { it == "all" || it in groups } ?: "all"
+    val labels =
+        mapOf(
+            "light" to R.string.lights,
+            "switch" to R.string.switches,
+            "cover" to R.string.covers,
+            "climate" to R.string.thermostats,
+        )
+    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Label(
+            stringResource(if (scenes) R.string.scenes else R.string.devices),
+            size = 24,
+            bold = true,
+        )
+        if (!scenes && groups.isNotEmpty())
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(5.dp),
             ) {
-                Label(entity.name, bold = true)
-                Label(
-                    if (entity.available) entity.state else stringResource(R.string.unavailable),
-                    size = 11,
-                    color = Muted,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    when (entity.domain) {
-                        "cover" ->
-                            listOf(
-                                    R.string.open_cover to "open_cover",
-                                    R.string.stop_cover to "stop_cover",
-                                    R.string.close_cover to "close_cover",
-                                )
-                                .forEach { (label, action) ->
-                                    Action(
-                                        stringResource(label),
-                                        { model.service(entity, action) },
-                                        enabled = entity.available,
-                                    )
-                                }
-                        "climate" -> {
-                            Action(
-                                "−",
-                                { adjustClimate(model, entity, -1) },
-                                enabled = entity.available,
-                            )
-                            Label("${entity.number("temperature") ?: "—"}°", size = 24)
-                            Action(
-                                "+",
-                                { adjustClimate(model, entity, 1) },
-                                enabled = entity.available,
-                            )
-                        }
-                        else ->
-                            Action(
-                                stringResource(
-                                    if (entity.domain == "scene") R.string.activate
-                                    else if (entity.state == "on") R.string.off else R.string.on
-                                ),
-                                {
-                                    model.service(
-                                        entity,
-                                        if (entity.domain == "scene") "turn_on" else "toggle",
-                                    )
-                                },
-                                enabled = entity.available,
-                            )
-                    }
+                item {
+                    Action(
+                        stringResource(R.string.all_devices),
+                        {
+                            category = "all"
+                            scope.launch { listState.scrollToItem(0) }
+                        },
+                        selected = active == "all",
+                    )
+                }
+                items(kinds.filter { it in groups }, key = { it }) { kind ->
+                    Action(
+                        stringResource(labels.getValue(kind)),
+                        {
+                            category = kind
+                            scope.launch { listState.scrollToItem(0) }
+                        },
+                        selected = active == kind,
+                    )
                 }
             }
+        LazyColumn(
+            Modifier.weight(1f).testTag("device-list"),
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(5.dp),
+        ) {
+            (if (scenes) listOf("scene")
+                else kinds.filter { it in groups && (active == "all" || active == it) })
+                .forEach { kind ->
+                    val members =
+                        groups[kind].orEmpty().sortedBy { it.name.lowercase(Locale.getDefault()) }
+                    if (!scenes)
+                        item(key = "heading:$kind") {
+                            Label(
+                                stringResource(labels.getValue(kind)) + " · " + members.size,
+                                Modifier.padding(top = 8.dp).semantics { heading() },
+                                size = 18,
+                                color = Accent,
+                                bold = true,
+                            )
+                        }
+                    items(members, key = { it.id }) { entity ->
+                        Column(
+                            Modifier.fillMaxWidth()
+                                .background(Panel, RoundedCornerShape(12.dp))
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Label(entity.name, bold = true)
+                            Label(
+                                if (entity.available) entity.state
+                                else stringResource(R.string.unavailable),
+                                size = 11,
+                                color = Muted,
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                when (entity.domain) {
+                                    "cover" ->
+                                        listOf(
+                                                R.string.open_cover to "open_cover",
+                                                R.string.stop_cover to "stop_cover",
+                                                R.string.close_cover to "close_cover",
+                                            )
+                                            .forEach { (label, action) ->
+                                                Action(
+                                                    stringResource(label),
+                                                    { model.service(entity, action) },
+                                                    enabled = entity.available,
+                                                )
+                                            }
+                                    "climate" -> {
+                                        Action(
+                                            "−",
+                                            { adjustClimate(model, entity, -1) },
+                                            enabled = entity.available,
+                                            modifier =
+                                                Modifier.testTag("device:${entity.id}:decrease"),
+                                        )
+                                        Label("${entity.number("temperature") ?: "—"}°", size = 24)
+                                        Action(
+                                            "+",
+                                            { adjustClimate(model, entity, 1) },
+                                            enabled = entity.available,
+                                            modifier =
+                                                Modifier.testTag("device:${entity.id}:increase"),
+                                        )
+                                    }
+                                    else ->
+                                        Action(
+                                            stringResource(
+                                                if (entity.domain == "scene") R.string.activate
+                                                else if (entity.state == "on") R.string.off
+                                                else R.string.on
+                                            ),
+                                            {
+                                                model.service(
+                                                    entity,
+                                                    if (entity.domain == "scene") "turn_on"
+                                                    else "toggle",
+                                                )
+                                            },
+                                            enabled = entity.available,
+                                            modifier =
+                                                Modifier.testTag("device:${entity.id}:toggle"),
+                                        )
+                                }
+                            }
+                        }
+                    }
+                }
+            if (selected.isEmpty()) item { Label(stringResource(R.string.entities), color = Muted) }
         }
-        if (selected.isEmpty()) item { Label(stringResource(R.string.entities), color = Muted) }
     }
 }
 

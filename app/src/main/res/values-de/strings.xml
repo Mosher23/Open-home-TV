@@ -36,4 +36,8 @@
 <string name="camera_retry">Video nicht verfügbar · neuer Versuch</string>
 <string name="camera_snapshot">Standbild · Video wird erneut versucht</string>
 <string name="camera_connecting">Verbindung…</string>
-<string name="room_temperature">Temperatur</string><string name="room_humidity">Luftfeuchtigkeit</string><string name="auto_discovery_hint">Szenen, Raumklima und Kalender werden automatisch aus Home Assistant erkannt.</string></resources>
+<string name="room_temperature">Temperatur</string><string name="room_humidity">Luftfeuchtigkeit</string><string name="auto_discovery_hint">Szenen, Raumklima und Kalender werden automatisch aus Home Assistant erkannt.</string><string name="all_devices">Alle Geräte</string>
+<string name="switches">Schalter</string>
+<string name="covers">Rollläden</string>
+<string name="thermostats">Thermostate</string>
+</resources>

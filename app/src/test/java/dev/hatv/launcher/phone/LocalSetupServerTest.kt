@@ -59,7 +59,15 @@ class LocalSetupServerTest {
             send(envelope.toString()).use { assertEquals(400, it.code) }
             assertEquals(1, calls.get())
             server.close()
-            assertTrue(runCatching { Socket("127.0.0.1", server.port).close() }.isFailure)
+            // A blocked accept may release its native descriptor just after close() returns.
+            // Wait for that bounded OS handoff rather than racing the listener thread on CI.
+            runBlocking {
+                withTimeout(2000) {
+                    while (
+                        runCatching { Socket("127.0.0.1", server.port).close() }.isSuccess
+                    ) delay(10)
+                }
+            }
         } finally {
             server.close()
             scope.cancel()

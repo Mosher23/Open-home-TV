@@ -6,7 +6,7 @@ Validated on 7 November 2026 with the same Android TV API 34 / 1080p emulator an
 
 - Debug APK build, JVM tests and Android lint passed.
 - 17 JVM tests passed. Added room area inheritance/overrides, diagnostic exclusion, scene activation availability, all-day DST dates and backward-compatible configuration. Extended protocol coverage to WebRTC subscription events/unsubscribe/disconnect, recoverable command timeout, calendar REST authorization and snapshot REST authorization.
-- 9 Android tests passed using real D-pad/Select/Back events, including Climate/Calendar pause/resume, camera fullscreen, lights, native phone setup approval/persistence and direct lifecycle cancellation while UI frames are paused.
+- 10 Android tests passed using real D-pad/Select/Back events, including Devices grouping/category filters and Climate/Calendar pause/resume, camera fullscreen, lights, native phone setup approval/persistence and direct lifecycle cancellation while UI frames are paused.
 - 3 Node AES-GCM protocol tests passed; bundled phone JavaScript rebuilt successfully. Browser UI verification for this update was unavailable because local browser use was disabled; the earlier 0.2.0 browser pass remains below.
 - Visually inspected Home, app banner grid, Climate, Calendar, Settings and German Home. Screenshots contain demo data only.
 - Debug demo PSS: 125,405 KiB (~122 MiB) after navigating screens; 117,490 KiB (~115 MiB) after five background/foreground cycles. One Activity and zero WebViews in both samples. This is a short emulator observation with cameras disabled, not a leak proof or a real-camera benchmark.

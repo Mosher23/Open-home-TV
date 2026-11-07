@@ -6,7 +6,7 @@ A lightweight, ad-free Android TV HOME launcher with local Home Assistant integr
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
-[Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Calendar](docs/images/calendar-en.png) · [German](docs/images/dashboard-de.png) · [Settings](docs/images/settings-en.png)
+[Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Devices](docs/images/devices-en.png) · [Calendar](docs/images/calendar-en.png) · [German](docs/images/dashboard-de.png) · [Settings](docs/images/settings-en.png)
 
 ## Set up with your phone
 
@@ -22,6 +22,7 @@ Use a trusted private home network. Setup API payloads are encrypted; the local 
 - Bottom app dock and Apple TV inspired banner grid, using installed app artwork. Pin/unpin apps from the grid; order, labels and icon initials remain configurable. HDMI shortcuts appear when the TV exposes passthrough inputs. Icon-only navigation retains accessible names. Android TV settings are inside Settings.
 - HA weather entity, current temperature/humidity/wind, hourly/daily forecasts and Celsius/Fahrenheit display.
 - Home power: measured whole-home power, optional solar/grid/battery flows and heat-pump/EV/appliance readings, inspired by the HA Energy Wall. Unconfigured nodes are omitted. Select W/kW/MW sensors and measured appliances on the phone or TV; select the power card for the full appliance list. Negative grid/battery values reverse flow.
+- Devices are grouped by kind (lights, switches, covers, thermostats), alphabetized within each group, with persistent category filters and hidden empty groups.
 - All HA scenes appear automatically, including scenes never activated before. Lights and switches remain configurable.
 - Climate groups sensors and controls by HA area, inheriting device areas when needed: temperature, humidity, CO₂, PM2.5, thermostat setpoint/modes/presets, and supported cover open/stop/close actions. Hidden and diagnostic entities are excluded.
 - Calendar automatically discovers visible HA calendars and loads a seven-day agenda on demand, with calendar filters, all-day dates in HA’s time zone, event details, partial-failure reporting and Refresh.

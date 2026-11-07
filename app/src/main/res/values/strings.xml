@@ -36,4 +36,8 @@
 <string name="camera_retry">Video unavailable · retrying</string>
 <string name="camera_snapshot">Snapshot fallback · video retrying</string>
 <string name="camera_connecting">Connecting…</string>
-<string name="room_temperature">Temperature</string><string name="room_humidity">Humidity</string><string name="auto_discovery_hint">Scenes, room climate and calendars are discovered automatically from Home Assistant.</string></resources>
+<string name="room_temperature">Temperature</string><string name="room_humidity">Humidity</string><string name="auto_discovery_hint">Scenes, room climate and calendars are discovered automatically from Home Assistant.</string><string name="all_devices">All devices</string>
+<string name="switches">Switches</string>
+<string name="covers">Covers</string>
+<string name="thermostats">Thermostats</string>
+</resources>

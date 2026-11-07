@@ -60,13 +60,52 @@ class RemoteNavigationTest {
         home()
         repeat(3) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
         key(KeyEvent.KEYCODE_DPAD_CENTER)
-        key(KeyEvent.KEYCODE_DPAD_RIGHT)
+        ui.onNodeWithTag("device-list")
+            .performScrollToNode(hasTestTag("device:light.living_room:toggle"))
+        ui.onNodeWithTag("device:light.living_room:toggle").performSemanticsAction(
+            SemanticsActions.RequestFocus
+        ) {
+            it()
+        }
         key(KeyEvent.KEYCODE_DPAD_CENTER)
-        // State of the first light changes from on to off; no HA credentials or services involved.
-        ui.onAllNodesWithText("off").assertCountEquals(2)
+        ui.activityRule.scenario.onActivity { activity ->
+            org.junit.Assert.assertEquals(
+                "off",
+                androidx.lifecycle
+                    .ViewModelProvider(activity)[LauncherViewModel::class.java]
+                    .entities
+                    .value["light.living_room"]
+                    ?.state,
+            )
+        }
         key(KeyEvent.KEYCODE_BACK)
         key(KeyEvent.KEYCODE_DPAD_RIGHT)
         ui.onNodeWithText("YouTube").assertIsDisplayed()
+    }
+
+    @Test
+    fun devicesGroupByKindAndRemoteCanFilterGroups() {
+        home()
+        repeat(3) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        ui.onNodeWithText("All devices").assertIsDisplayed()
+        ui.onNodeWithText("Lights · 4").assertIsDisplayed()
+        ui.onNodeWithText("Switches").assertDoesNotExist()
+        ui.onNodeWithText("Thermostats").performSemanticsAction(SemanticsActions.RequestFocus) {
+            it()
+        }
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        ui.onNodeWithText("Thermostats · 1").assertIsDisplayed()
+        ui.onNodeWithText("Living Room · Thermostat").assertIsDisplayed()
+        ui.onNodeWithTag("device:light.living_room:toggle").assertDoesNotExist()
+        ui.onNodeWithText("Covers").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        key(KeyEvent.KEYCODE_DPAD_CENTER)
+        ui.onNodeWithText("Covers · 1").assertIsDisplayed()
+        ui.onNodeWithText("Open").assertIsDisplayed()
+        ui.onNodeWithText("Stop").assertIsDisplayed()
+        ui.onNodeWithText("Close").assertIsDisplayed()
+        key(KeyEvent.KEYCODE_BACK)
+        ui.onNodeWithText("Home power").assertIsDisplayed()
     }
 
     @Test
