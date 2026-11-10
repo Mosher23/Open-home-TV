@@ -1,5 +1,16 @@
 # Validation
 
+## Version 0.5.0 — Gallery Grey native implementation
+
+- Final debug build, 22 JVM tests, 17 native Android TV tests, Android lint and 3 phone-protocol Node tests passed on the isolated API 34 / 1080p TV emulator. The phone bundle was rebuilt and included in the final APK. No runtime dependencies or permissions changed.
+- The native Gallery layout removes the old header/branding and mountain wallpaper. Clock/weather, power and edge-to-edge camera panels occupy the top row; colorful scenes/lights sit above a seven-banner dock. Shared surfaces are neutral grey with white focus borders. Installed app artwork remains native; demo service tiles use text/color without bundled third-party logos.
+- New native assertions check aligned top edges within the first 8% of the screen, increasing weather/power/camera widths, a visible All apps dock target, hourly/daily forecast access and Back restoring weather focus. Existing Home count/order, zero/four-feed geometry, Power/Today, scenes and navigation tests pass.
+- Camera Settings entry now focuses the feed-count control; an actual remote test asserts focus there. Zero/four boundaries hand focus to the enabled control. Save/persistence, token storage and Select-to-edit keyboard tests still pass.
+- Two real simultaneous HLS fixture players report live only after rendered/ready video and clear that state when disposed; they reopen correctly. The production WebRTC page still decodes synthetic video and detects a stalled feed. These tests do not establish playback with the user’s physical cameras on Sony.
+- New configurations and legacy configurations without an explicit Home feed count default to one. Explicit saved counts, camera order/endpoints, app selections, entity mappings and authentication remain intact. Home’s Other row includes unlisted loads; missing visible readings keep the residual unknown. Full load details and Today recorder behavior remain available.
+- Manual emulator D-pad navigation (Home → Right → Right → Select) reached the power card and toggled Today; its screenshot was checked. A demo-only memory sample after visiting the views reported 126,148 KiB PSS (~123 MiB), with no active video. This is not a comparative benchmark or a Sony/live-camera memory result.
+- Demo-only screenshots were captured from the running app, including the shared styling on secondary pages. The demo camera is an explicitly labelled placeholder, not the generated concept’s garden photo or a claimed live HA feed. Physical Sony/4K behavior, real-feed visual comparison and long memory soaks remain hardware checks. The broader secondary-screen optimization proposal is not claimed fully implemented.
+
 ## Version 0.4.2 — save one Home camera from TV settings
 
 - Build, Android lint, 22 JVM tests and 16 native Android TV tests passed on the isolated API 34 emulator. No installation or configuration change was made on the physical TV.

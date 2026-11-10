@@ -63,4 +63,5 @@
 <string name="save_camera_view">Kameraansicht speichern</string>
 <string name="camera_view_saved">Kameraansicht gespeichert</string>
 <string name="camera_view_unsaved">Ungespeicherte Änderungen</string>
+<string name="camera_live">Live</string>
 </resources>

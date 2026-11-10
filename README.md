@@ -2,11 +2,11 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.4.2 — save the Home camera view directly from TV camera settings.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.5.0 — Gallery Grey: header-free Home, colorful icons and a full-width app dock.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
-[Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Devices](docs/images/devices-en.png) · [Calendar](docs/images/calendar-en.png) · [Today energy](docs/images/energy-today-en.png) · [Scenes](docs/images/scenes-en.png) · [German](docs/images/dashboard-de.png) · [Settings](docs/images/settings-en.png)
+[Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Devices](docs/images/devices-en.png) · [Calendar](docs/images/calendar-en.png) · [Today energy](docs/images/energy-today-en.png) · [Scenes](docs/images/scenes-en.png) · [Settings](docs/images/settings-en.png)
 
 Manual Settings fields stay in browse mode until you press **Select/OK**. The editor opens the keyboard explicitly; **Done** applies the draft, and **Cancel/Back** discards it and restores field focus. The main Settings **Save** still saves your configuration.
 
@@ -20,7 +20,7 @@ Use a trusted private home network. Setup API payloads are encrypted; the local 
 
 ## Dashboard
 
-- Dark translucent cards, a static vector dusk landscape, 16:9 layout scaled for 1080p/4K, visible D-pad focus and English/German system localization.
+- Neutral graphite/grey panels, colorful line icons, no title/header band, 16:9 layout scaled for 1080p/4K, white D-pad focus and English/German system localization. Clock/weather, power and edge-to-edge cameras use the recovered top area; scenes/lights sit above the bottom app dock. Select the clock/weather panel for hourly/daily forecasts.
 - Bottom app dock and Apple TV inspired banner grid, using installed app artwork. Pin/unpin apps from the grid; order, labels and icon initials remain configurable. HDMI shortcuts appear when the TV exposes passthrough inputs. Icon-only navigation retains accessible names. Android TV settings are inside Settings.
 - HA weather entity, current temperature/humidity/wind, hourly/daily forecasts and Celsius/Fahrenheit display.
 - Individual-load flow chart with a home source, colored appliance branches and Other consumption. Select the card to toggle live W/kW power and Today’s kWh consumption; Details opens the full load list. It reads the HA energy dashboard’s home and device meter pairs automatically, with optional overrides on TV or phone. Daily values use recorder changes since midnight in HA’s time zone, not lifetime counters.
@@ -28,7 +28,7 @@ Use a trusted private home network. Setup API payloads are encrypted; the local 
 - All HA scenes appear automatically, including scenes never activated before. Modern colored icons distinguish morning, night, cinema, home, eco and other scenes; thermostat presets use the same icon style. Lights and switches remain configurable. Heating controls are in Climate and Devices, with no heating panel on Home.
 - Climate groups sensors and controls by HA area, inheriting device areas when needed: temperature, humidity, CO₂, PM2.5, thermostat setpoint/modes/presets, and supported cover open/stop/close actions. Hidden and diagnostic entities are excluded.
 - Calendar automatically discovers visible HA calendars and loads a seven-day agenda on demand, with calendar filters, all-day dates in HA’s time zone, event details, partial-failure reporting and Refresh.
-- Camera fullscreen playback and live Home previews enabled by default. Choose 0–4 feeds and their sequence from TV Settings → Home cameras and streams or phone setup. Zero hides the Home camera panel; three/four feeds use a grid, in row order. Automatic HA-native WebRTC, optional explicit go2rtc endpoint, then Media3 HLS fallback. Cropped video fills cards. If video fails, a labeled snapshot refreshes every five seconds while HLS retries; it is never labeled live. Cameras stop when hidden.
+- Camera fullscreen playback and live Home previews enabled by default, with one Home feed for a new configuration. Choose 0–4 feeds and their sequence from TV Settings → Home cameras and streams or phone setup. Zero hides the Home camera panel; three/four feeds use a grid, in row order. Automatic HA-native WebRTC, optional explicit go2rtc endpoint, then Media3 HLS fallback. Cropped video fills cards. If video fails, a labeled snapshot refreshes every five seconds while HLS retries; it is never labeled live. Cameras stop when hidden.
 - HA URL/token settings, connection testing, entity selection, camera endpoints, app selection, widget order, panel appearance and optional animation.
 - Android TV HOME registration, normal TV app entry, Android settings access, and safe return to the stock launcher.
 
@@ -70,7 +70,7 @@ The recommended route is [phone setup](docs/PHONE-SETUP.md). Manual entry with t
 4. Reopen Settings → Choose entities. Pick weather, power sensors, controls and cameras. Camera selection is independent of controls.
 5. Back to the main Settings screen and **Save**. Selection changes remain a draft until saved. Widget selection moves that widget to the first slot within its row.
 6. In **Home cameras and streams**, set the feed count (choose **1** for a single camera), put the wanted camera first and press **Save camera view** on that screen. The Saved/Unsaved indicator confirms whether the draft is stored. No return to the main Settings Save button is required.
-7. Leave both camera endpoints blank for automatic HA-native WebRTC with HLS fallback. Optionally override with a go2rtc HTTP SDP endpoint such as `http://go2rtc.local:1984/api/webrtc?src=front_door`. Leave HLS blank to request a stream from HA. Two preview feeds are enabled by default. Choose 0–4 and their sequence in Home cameras and streams; prefer low-resolution feeds for three or four.
+7. Leave both camera endpoints blank for automatic HA-native WebRTC with HLS fallback. Optionally override with a go2rtc HTTP SDP endpoint such as `http://go2rtc.local:1984/api/webrtc?src=front_door`. Leave HLS blank to request a stream from HA. One preview feed is the default for new/legacy configurations without an explicit count; existing saved counts are preserved. Choose 0–4 and their sequence in Home cameras and streams; prefer low-resolution feeds for three or four.
 
 The token is encrypted with AES/GCM using Android Keystore and excluded from backups. Standard TLS validation is enforced. HTTP is allowed for local compatibility and sends the token without transport encryption; use HTTPS when available. Changing the server URL requires re-entering a saved token. Tokens are never sent to a different camera origin. Camera URLs must not contain embedded username/password credentials. Settings are private app data.
 
@@ -86,7 +86,7 @@ The load card uses your HA Energy dashboard automatically. To override it, map *
 
 - WebRTC uses Android System WebView and HA camera capabilities/client configuration, offer subscription, answer and ICE candidate events. Older HA versions without these commands fall back to HLS. An explicit go2rtc HTTP SDP endpoint remains supported.
 - WebRTC uses HA’s ICE configuration and sends local candidates throughout negotiation. Any STUN/TURN servers come from your HA configuration; none are hardcoded by the launcher. Local host candidates work without an external service. WebView support, codecs, LAN routing and TV decoder limits still determine compatibility. HLS is the fallback.
-- A connected WebRTC session must deliver decoded frames; a missing or frozen video falls back to HLS. HLS disables audio decoding for muted previews and shows safe error codes (for example HTTP_401 or DECODING_FAILED) beside snapshot fallback. Snapshot refreshes are still images, not live video.
+- The green Live badge appears only after video frames arrive and playback is ready. A connected WebRTC session must deliver decoded frames; a missing or frozen video falls back to HLS. HLS disables audio decoding for muted previews and shows safe error codes (for example HTTP_401 or DECODING_FAILED) beside snapshot fallback. Snapshot refreshes are still images, not live video.
 - At most four configured preview players or one fullscreen player are active. Prefer low-resolution camera substreams. Additional selected cameras are accessible from the Cameras screen without starting hidden streams.
 - Sony default-launcher restrictions and HDMI visibility vary by firmware. They cannot be bypassed by a normal application.
 - Custom app icons currently support installed package icons or short text initials; arbitrary image import and drag-and-drop widget sizing are future extensions. Widget order is configurable within each row, with three large and two compact slots.

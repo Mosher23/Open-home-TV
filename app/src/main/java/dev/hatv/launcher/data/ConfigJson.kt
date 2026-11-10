@@ -70,7 +70,7 @@ fun parseConfig(j: JSONObject): Config {
         animate = j.optBoolean("animate", true),
         // The old opt-in default becomes live once on upgrade; later explicit choices persist.
         livePreviews = if (j.has("homeCameraCount")) j.optBoolean("livePreviews", true) else true,
-        homeCameraCount = j.optInt("homeCameraCount", 2).coerceIn(0, MAX_HOME_CAMERAS),
+        homeCameraCount = j.optInt("homeCameraCount", 1).coerceIn(0, MAX_HOME_CAMERAS),
         fahrenheit = j.optBoolean("fahrenheit"),
         darkPanels = j.optBoolean("darkPanels"),
         widgets =

@@ -500,7 +500,7 @@ function entityChecks(domain, title) {
         list = el("div"),
         count = el("p", "", { class: "note" });
     if (domain === "camera") {
-        config.homeCameraCount ??= 2;
+        config.homeCameraCount ??= 1;
         config.livePreviews ??= true;
         const label = el("label", text("Number of Home feeds (0 hides cameras)", "Home-Feeds (0 blendet Kameras aus)"), { class: "field" });
         const select = el("select");

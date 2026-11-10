@@ -46,7 +46,7 @@ data class Config(
     val apps: List<AppShortcut> = emptyList(),
     val animate: Boolean = true,
     val livePreviews: Boolean = true,
-    val homeCameraCount: Int = 2,
+    val homeCameraCount: Int = 1,
     val fahrenheit: Boolean = false,
     val darkPanels: Boolean = false,
     val widgets: List<String> = listOf("weather", "energy", "cameras", "scenes", "lights"),

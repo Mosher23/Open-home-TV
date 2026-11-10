@@ -51,7 +51,7 @@ Choose camera entities. Leave endpoints blank for automatic HA-native WebRTC wit
 - go2rtc WebRTC: `http://GO2RTC_LAN_IP:1984/api/webrtc?src=front_door` (HTTP SDP API).
 - HLS: a local HLS playlist URL, or blank to use Home Assistant's `camera/stream` command.
 
-Use lower resolution substreams (e.g. 640×360 or 720p) for dashboard previews. Two Home previews are enabled by default. Choose 0–4 and their order in Settings → Home cameras and streams, or phone setup. On the TV, press **Save camera view** on that screen before leaving. For one feed, set the count to **1** and put the desired camera first. Zero hides the panel; three/four feeds use a grid. Credentials in camera endpoint URLs are not supported; use a trusted LAN endpoint or HA HLS authentication. Do not expose an unauthenticated go2rtc server to the Internet.
+Use lower resolution substreams (e.g. 640×360 or 720p) for dashboard previews. One Home preview is the default when no explicit feed count was previously saved; existing saved counts are retained. Choose 0–4 and their order in Settings → Home cameras and streams, or phone setup. On the TV, press **Save camera view** on that screen before leaving. For one feed, set the count to **1** and put the desired camera first. Zero hides the panel; three/four feeds use a grid. Credentials in camera endpoint URLs are not supported; use a trusted LAN endpoint or HA HLS authentication. Do not expose an unauthenticated go2rtc server to the Internet.
 
 For updates, use `adb install -r` with an APK signed with the same key. See [update signing details](PHONE-SETUP.md#updating-an-existing-installation) before switching between local and CI builds.
 

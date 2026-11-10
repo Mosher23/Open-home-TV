@@ -29,6 +29,7 @@ class CameraPlaybackTest {
 
     @Test
     fun twoHlsFeedsDecodeAndReopenAfterLeavingComposition() {
+        val live = java.util.concurrent.atomic.AtomicIntegerArray(2)
         val assets = InstrumentationRegistry.getInstrumentation().context.assets
         val socket = ServerSocket(0)
         val workers = Executors.newCachedThreadPool()
@@ -84,6 +85,9 @@ class CameraPlaybackTest {
                                 ),
                                 model,
                                 Modifier.weight(1f).fillMaxHeight(),
+                                onPlaybackChanged = { active ->
+                                    live.set(index, if (active) 1 else 0)
+                                },
                             )
                         }
                     }
@@ -92,9 +96,10 @@ class CameraPlaybackTest {
         fun awaitFrames() {
             ui.waitUntil(25000) {
                 (0..1).all {
-                    ui.onAllNodesWithTag("camera-live:camera.fixture$it")
-                        .fetchSemanticsNodes()
-                        .isNotEmpty()
+                    live.get(it) == 1 &&
+                        ui.onAllNodesWithTag("camera-live:camera.fixture$it")
+                            .fetchSemanticsNodes()
+                            .isNotEmpty()
                 }
             }
         }
@@ -102,6 +107,8 @@ class CameraPlaybackTest {
             awaitFrames()
             ui.runOnIdle { visible = false }
             ui.onNodeWithTag("camera-live:camera.fixture0").assertDoesNotExist()
+            assertEquals(0, live.get(0))
+            assertEquals(0, live.get(1))
             ui.runOnIdle { visible = true }
             awaitFrames()
         } finally {

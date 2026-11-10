@@ -32,11 +32,11 @@ private fun sceneStyle(name: String, hint: String = ""): SceneStyle {
             it in text
         } -> SceneStyle(Icons.Outlined.NightsStay, Color(0xFFA9A3FF))
         listOf("cinema", "movie", "film", "theater").any { it in text } ->
-            SceneStyle(Icons.Outlined.Movie, Color(0xFFDA8CF5))
+            SceneStyle(Icons.Outlined.Movie, Color(0xFFEBC66C))
         listOf("eco", "energy", "energie", "save", "sparen", "leaf").any { it in text } ->
             SceneStyle(Icons.Outlined.Eco, Color(0xFF7EE1A0))
         listOf("away", "abwesend", "urlaub", "vacation").any { it in text } ->
-            SceneStyle(Icons.Outlined.FlightTakeoff, Color(0xFF67DCD5))
+            SceneStyle(Icons.Outlined.DirectionsWalk, Color(0xFF67DCD5))
         listOf("privacy", "privat", "shield", "security").any { it in text } ->
             SceneStyle(Icons.Outlined.Shield, Color(0xFF91B8FF))
         listOf("boost", "heat", "heiz", "fire").any { it in text } ->
@@ -44,7 +44,7 @@ private fun sceneStyle(name: String, hint: String = ""): SceneStyle {
         listOf("comfort", "komfort", "relax").any { it in text } ->
             SceneStyle(Icons.Outlined.Weekend, Color(0xFFF1C17D))
         listOf("home", "hause", "house").any { it in text } ->
-            SceneStyle(Icons.Outlined.Home, Color(0xFF70C9FF))
+            SceneStyle(Icons.Outlined.Home, Color(0xFFF18E8E))
         else ->
             SceneStyle(
                 Icons.Outlined.AutoAwesome,
@@ -65,7 +65,7 @@ fun SceneTile(
     Tile(
         { model.service(entity, "turn_on") },
         modifier.testTag("scene:${entity.id}"),
-        color = style.color.copy(alpha = .13f),
+        color = if (compact) Color.Transparent else Panel,
         enabled = entity.available,
     ) {
         Column(
@@ -74,9 +74,9 @@ fun SceneTile(
             verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 12.dp),
         ) {
             Box(
-                Modifier.size(if (compact) 34.dp else 60.dp)
+                Modifier.size(if (compact) 43.dp else 60.dp)
                     .background(
-                        style.color.copy(alpha = .14f),
+                        if (compact) Color.Transparent else Raised,
                         RoundedCornerShape(if (compact) 11.dp else 18.dp),
                     ),
                 contentAlignment = Alignment.Center,
@@ -84,11 +84,11 @@ fun SceneTile(
                 Icon(
                     style.icon,
                     null,
-                    Modifier.size(if (compact) 24.dp else 38.dp),
+                    Modifier.size(if (compact) 40.dp else 38.dp),
                     tint = if (entity.available) style.color else Muted,
                 )
             }
-            Label(entity.name, size = if (compact) 10 else 15, bold = true)
+            Label(entity.name, size = if (compact) 12 else 15, bold = true)
             if (!entity.available)
                 Label(stringResource(R.string.unavailable), size = 10, color = Muted)
         }
@@ -102,7 +102,7 @@ fun PresetChip(preset: String, selected: Boolean, enabled: Boolean, action: () -
         action,
         Modifier.height(44.dp).width(IntrinsicSize.Max).widthIn(min = 85.dp),
         selected = selected,
-        color = style.color.copy(alpha = .14f),
+        color = Raised,
         enabled = enabled,
     ) {
         Row(

@@ -128,6 +128,7 @@ class DashboardFeaturesTest {
         }
         try {
             cameraSettings()
+            ui.onNodeWithTag("home-camera-count-down").assertIsFocused()
             ui.onNodeWithTag("settings-list")
                 .performScrollToNode(hasTestTag("home-camera-count-down"))
             select(ui.onNodeWithTag("home-camera-count-down"))
@@ -165,6 +166,52 @@ class DashboardFeaturesTest {
             ui.activityRule.scenario.onActivity {
                 ViewModelProvider(it)[LauncherViewModel::class.java].update(original)
             }
+        }
+    }
+
+    @Test
+    fun galleryUsesHeaderSpaceAndKeepsForecastAccessible() {
+        lateinit var model: LauncherViewModel
+        lateinit var original: Config
+        ui.activityRule.scenario.onActivity {
+            model = ViewModelProvider(it)[LauncherViewModel::class.java]
+            original = model.config.value
+            model.update(
+                original.copy(
+                    demo = true,
+                    cameras = Demo.cameras,
+                    homeCameraCount = 1,
+                    widgets = Config().widgets,
+                )
+            )
+        }
+        try {
+            home()
+            ui.onNodeWithText("Open home TV").assertDoesNotExist()
+            val screen = ui.onRoot().getUnclippedBoundsInRoot()
+            val weather =
+                ui.onNodeWithTag("home-weather").assertIsDisplayed().getUnclippedBoundsInRoot()
+            val power = ui.onNodeWithTag("energy-card").getUnclippedBoundsInRoot()
+            val camera = ui.onNodeWithTag("home-camera:camera.harbor").getUnclippedBoundsInRoot()
+            assertTrue(
+                "An empty header row remains",
+                weather.top.value < (screen.bottom.value - screen.top.value) * .08f,
+            )
+            assertEquals(weather.top.value, power.top.value, 2f)
+            assertEquals(power.top.value, camera.top.value, 2f)
+            assertTrue(
+                weather.right.value - weather.left.value < power.right.value - power.left.value &&
+                    power.right.value - power.left.value < camera.right.value - camera.left.value
+            )
+            ui.onNodeWithText("All apps").assertIsDisplayed()
+            select(ui.onNodeWithTag("home-weather"))
+            ui.onNodeWithText("Hourly").assertIsDisplayed()
+            select(ui.onNodeWithText("Hourly"))
+            ui.onNodeWithText("Daily").assertIsDisplayed()
+            key(KeyEvent.KEYCODE_BACK)
+            ui.onNodeWithTag("home-weather").assertIsFocused()
+        } finally {
+            ui.activityRule.scenario.onActivity { model.update(original) }
         }
     }
 

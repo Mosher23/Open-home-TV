@@ -42,7 +42,6 @@ import dev.hatv.launcher.LauncherViewModel
 import dev.hatv.launcher.R
 import dev.hatv.launcher.camera.CameraPlayer
 import dev.hatv.launcher.data.*
-import dev.hatv.launcher.ha.HomeAssistantClient
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -77,7 +76,7 @@ fun Launcher(model: LauncherViewModel) {
         listOf(
             Icons.Outlined.Home,
             Icons.Outlined.Apps,
-            Icons.Outlined.PlayCircle,
+            Icons.Outlined.Movie,
             Icons.Outlined.Devices,
             Icons.Outlined.Videocam,
             Icons.Outlined.Thermostat,
@@ -111,73 +110,75 @@ fun Launcher(model: LauncherViewModel) {
             val scale = constraints.maxWidth / 1000f
             CompositionLocalProvider(LocalDensity provides Density(scale, fontScale = 1f)) {
                 Backdrop(Modifier.fillMaxSize())
-                Column(
-                    Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                Row(
+                    Modifier.fillMaxSize()
+                        .padding(start = 12.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Header(model, config, entities)
-                    Row(
-                        Modifier.fillMaxWidth().weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    Column(
+                        Modifier.width(44.dp)
+                            .fillMaxHeight()
+                            .background(Color(0xFF202020), RoundedCornerShape(18.dp))
+                            .padding(vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        Column(
-                            Modifier.width(52.dp).fillMaxHeight(),
-                            verticalArrangement = Arrangement.spacedBy(7.dp),
-                        ) {
-                            menu.forEachIndexed { i, (route, label) ->
-                                Tile(
-                                    { page = route },
-                                    Modifier.fillMaxWidth()
-                                        .semantics { contentDescription = context.getString(label) }
-                                        .height(42.dp)
-                                        .then(
-                                            if (i == 0)
-                                                Modifier.focusRequester(homeFocus)
-                                                    .onGloballyPositioned { homeReady = true }
-                                            else Modifier
-                                        ),
-                                    selected = page == route,
-                                    color = Color.Transparent,
-                                ) {
-                                    Icon(
-                                        icons[i],
-                                        null,
-                                        Modifier.size(23.dp),
-                                        tint = if (page == route) Color.White else Muted,
-                                    )
-                                }
+                        menu.forEachIndexed { i, (route, label) ->
+                            Tile(
+                                { page = route },
+                                Modifier.fillMaxWidth()
+                                    .semantics { contentDescription = context.getString(label) }
+                                    .height(40.dp)
+                                    .then(
+                                        if (i == 0)
+                                            Modifier.focusRequester(homeFocus)
+                                                .onGloballyPositioned { homeReady = true }
+                                        else Modifier
+                                    ),
+                                selected = page == route,
+                                color = Color.Transparent,
+                            ) {
+                                Icon(
+                                    icons[i],
+                                    null,
+                                    Modifier.size(23.dp),
+                                    tint =
+                                        listOf(
+                                            Accent,
+                                            Color(0xFFA5C9EF),
+                                            Color(0xFFD6A4ED),
+                                            Color(0xFF7CE0D1),
+                                            Color(0xFFA5C9EF),
+                                            Color(0xFFF18E8E),
+                                            Color(0xFFF5C84E),
+                                            Color(0xFFA5C9EF),
+                                        )[i],
+                                )
                             }
-                            Spacer(Modifier.weight(1f))
-                            Label(
-                                dev.hatv.launcher.BuildConfig.VERSION_NAME,
-                                size = 8,
-                                color = Muted,
-                            )
                         }
-                        Box(Modifier.weight(1f).fillMaxHeight()) {
-                            if (fullscreen == null)
-                                when (page) {
-                                    "home" ->
-                                        HomeDashboard(
-                                            model,
-                                            config,
-                                            entities,
-                                            { page = "apps" },
-                                            { fullscreen = it },
-                                            { page = "power" },
-                                        )
-                                    "power" -> PowerPage(model, config)
-                                    "apps" -> AppsPage(model, config)
-                                    "scenes",
-                                    "devices" ->
-                                        DevicePage(model, config, entities, page == "scenes")
-                                    "cameras" ->
-                                        CamerasPage(model, config, entities, { fullscreen = it })
-                                    "climate" -> RoomsPage(model, config)
-                                    "calendar" -> CalendarPage(model, config)
-                                    "settings" -> SettingsPage(model)
-                                }
-                        }
+                        Spacer(Modifier.weight(1f))
+                    }
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                        if (fullscreen == null)
+                            when (page) {
+                                "home" ->
+                                    HomeDashboard(
+                                        model,
+                                        config,
+                                        entities,
+                                        { page = "apps" },
+                                        { fullscreen = it },
+                                        { page = "power" },
+                                    )
+                                "power" -> PowerPage(model, config)
+                                "apps" -> AppsPage(model, config)
+                                "scenes",
+                                "devices" -> DevicePage(model, config, entities, page == "scenes")
+                                "cameras" ->
+                                    CamerasPage(model, config, entities, { fullscreen = it })
+                                "climate" -> RoomsPage(model, config)
+                                "calendar" -> CalendarPage(model, config)
+                                "settings" -> SettingsPage(model)
+                            }
                     }
                 }
                 if (fullscreen != null)
@@ -208,76 +209,13 @@ fun Launcher(model: LauncherViewModel) {
                     Box(
                         Modifier.align(Alignment.BottomCenter)
                             .padding(12.dp)
-                            .background(Color(0xFF18374A), RoundedCornerShape(10.dp))
+                            .background(Raised, RoundedCornerShape(10.dp))
                             .padding(12.dp)
                     ) {
                         Label(it, size = 13)
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun Header(model: LauncherViewModel, c: Config, entities: Map<String, Entity>) {
-    var clock by remember { mutableStateOf(ZonedDateTime.now()) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            clock = ZonedDateTime.now()
-            delay(1000L * (60 - clock.second))
-        }
-    }
-    val status by model.ha.status.collectAsStateWithLifecycle()
-    val weather = entities[if (c.demo) "weather.home" else c.weather]
-    Row(Modifier.fillMaxWidth().height(61.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(Icons.Outlined.Home, null, Modifier.size(42.dp), tint = Accent)
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Label("Open home TV", size = 22, bold = true)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Label(
-                    "●",
-                    size = 10,
-                    color =
-                        if (status == HomeAssistantClient.Status.ONLINE) Green
-                        else if (c.demo) Accent else Color(0xFFF3B45D),
-                )
-                Label(
-                    if (c.demo) stringResource(R.string.demo)
-                    else if (status == HomeAssistantClient.Status.ONLINE)
-                        stringResource(R.string.online)
-                    else if (status == HomeAssistantClient.Status.AUTH_ERROR)
-                        "Authentication failed"
-                    else stringResource(R.string.offline),
-                    size = 10,
-                )
-            }
-        }
-        Spacer(Modifier.weight(1f))
-        Column(horizontalAlignment = Alignment.End) {
-            Label(clock.format(DateTimeFormatter.ofPattern("HH:mm")), size = 34)
-            Label(
-                clock.format(DateTimeFormatter.ofPattern("EEE, d. MMM yyyy", Locale.getDefault())),
-                size = 10,
-            )
-        }
-        Spacer(Modifier.width(22.dp))
-        Icon(Icons.Outlined.Cloud, null, Modifier.size(30.dp), tint = Color(0xFFF2D386))
-        Spacer(Modifier.width(10.dp))
-        Column {
-            Label(
-                formatTemperature(
-                    weather?.number("temperature"),
-                    weather?.attributes?.optString("temperature_unit") == "°F",
-                    c.fahrenheit,
-                ),
-                size = 23,
-            )
-            Label(c.location, size = 11, color = Muted)
         }
     }
 }
@@ -291,15 +229,38 @@ private fun HomeDashboard(
     openCamera: (CameraConfig) -> Unit,
     openPower: () -> Unit = {},
 ) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        // First three widget slots are large; last three compact. Order is persisted by Settings.
+    var forecast by remember { mutableStateOf(false) }
+    if (forecast) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { forecast = false },
+            properties =
+                androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Column(
+                Modifier.fillMaxWidth(.82f)
+                    .height(340.dp)
+                    .background(Panel, RoundedCornerShape(18.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Action(stringResource(R.string.back), { forecast = false })
+                WeatherCard(model, c, entities, Modifier.fillMaxWidth().weight(1f))
+            }
+        }
+    }
+    Column(
+        Modifier.fillMaxSize().testTag("home-dashboard"),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Row(
-            Modifier.weight(1.6f).fillMaxWidth(),
+            Modifier.weight(2.65f).fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             c.widgets
                 .take(3)
-                .filterNot { it == "cameras" && c.homeCameraCount == 0 }
+                .filterNot {
+                    it == "cameras" && (c.homeCameraCount == 0 || c.selectedCameras().isEmpty())
+                }
                 .forEach { key ->
                     Widget(
                         key,
@@ -307,14 +268,12 @@ private fun HomeDashboard(
                         c,
                         entities,
                         Modifier.weight(
-                                if (key == "energy") 1.45f
-                                else if (key == "cameras") {
-                                    if (c.homeCameraCount > 2) 1.6f else .95f
-                                } else 1.05f
+                                if (key == "energy") 1.3f else if (key == "cameras") 1.8f else 1f
                             )
                             .fillMaxHeight(),
                         openCamera,
                         openPower,
+                        { forecast = true },
                     )
                 }
         }
@@ -328,7 +287,7 @@ private fun HomeDashboard(
                     model,
                     c,
                     entities,
-                    Modifier.weight(1f).fillMaxHeight(),
+                    Modifier.weight(if (key == "scenes") 1.6f else 1f).fillMaxHeight(),
                     openCamera,
                     openPower,
                 )
@@ -347,29 +306,30 @@ private fun Widget(
     modifier: Modifier,
     openCamera: (CameraConfig) -> Unit,
     openPower: () -> Unit = {},
+    openForecast: () -> Unit = {},
 ) {
     val selected = if (c.demo) entities.values.toList() else c.controls.mapNotNull { entities[it] }
     when (key) {
         "energy" -> EnergyCard(model, c, modifier, openPower)
-        "weather" -> WeatherCard(model, c, entities, modifier)
+        "weather" -> GalleryClockWeather(model, c, entities, modifier, openForecast)
         "cameras" -> CameraCard(model, c, entities, modifier, openCamera)
         "scenes" ->
-            ControlsCard(
+            GalleryControls(
                 stringResource(R.string.scenes),
-                Icons.Outlined.PlayCircle,
                 entities.values.filter { it.domain == "scene" }.sortedBy { it.name },
                 model,
+                true,
+                c.darkPanels,
                 modifier,
-                c,
             )
         "lights" ->
-            ControlsCard(
+            GalleryControls(
                 stringResource(R.string.lights),
-                Icons.Outlined.Lightbulb,
-                selected.filter { it.domain in listOf("light", "switch", "cover") },
+                selected.filter { it.domain in listOf("light", "switch") },
                 model,
+                false,
+                c.darkPanels,
                 modifier,
-                c,
             )
     }
 }
@@ -377,37 +337,40 @@ private fun Widget(
 @Composable
 fun AppRow(model: LauncherViewModel, c: Config, allApps: () -> Unit) {
     val installed by model.installed.collectAsStateWithLifecycle()
-    LazyRow(
-        Modifier.fillMaxWidth().height(88.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(5.dp),
-    ) {
-        if (c.demo && c.apps.isEmpty())
-            items(listOf("YouTube", "Disney+", "Apple TV", "arte", "ARD", "ZDF")) { name ->
-                AppBanner(null, name, "", Modifier.width(130.dp).fillMaxHeight()) {
-                    model.message.value = "Demo app · choose installed apps in Settings"
+    BoxWithConstraints(Modifier.fillMaxWidth().height(88.dp).testTag("app-dock")) {
+        val bannerWidth = ((maxWidth - 10.dp - 12.dp * 6) / 7).coerceAtLeast(90.dp)
+        LazyRow(
+            Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(5.dp),
+        ) {
+            if (c.demo && c.apps.isEmpty())
+                items(listOf("YouTube", "Disney+", "Apple TV", "arte", "ARD", "ZDF")) { name ->
+                    AppBanner(null, name, "", Modifier.width(bannerWidth).fillMaxHeight()) {
+                        model.message.value = "Demo app · choose installed apps in Settings"
+                    }
                 }
-            }
-        else
-            items(c.apps, key = { it.id }) { shortcut ->
-                val app = installed.find { it.id == shortcut.id }
-                AppBanner(
-                    app,
-                    shortcut.label.ifBlank { app?.name ?: shortcut.id.substringAfterLast('/') },
-                    shortcut.icon,
-                    Modifier.width(130.dp).fillMaxHeight(),
-                ) {
-                    model.launchApp(shortcut.id)
+            else
+                items(c.apps, key = { it.id }) { shortcut ->
+                    val app = installed.find { it.id == shortcut.id }
+                    AppBanner(
+                        app,
+                        shortcut.label.ifBlank { app?.name ?: shortcut.id.substringAfterLast('/') },
+                        shortcut.icon,
+                        Modifier.width(bannerWidth).fillMaxHeight(),
+                    ) {
+                        model.launchApp(shortcut.id)
+                    }
                 }
-            }
-        item {
-            Tile(allApps, Modifier.width(95.dp).fillMaxHeight(), color = Color(0xCC293344)) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
-                ) {
-                    Icon(Icons.Outlined.Apps, null, Modifier.size(26.dp), tint = Color.White)
-                    Label(stringResource(R.string.all_apps), size = 12)
+            item {
+                Tile(allApps, Modifier.width(bannerWidth).fillMaxHeight(), color = Raised) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Icon(Icons.Outlined.Apps, null, Modifier.size(26.dp), tint = Color.White)
+                        Label(stringResource(R.string.all_apps), size = 12)
+                    }
                 }
             }
         }
@@ -424,12 +387,23 @@ private fun AppBanner(
 ) {
     val banner = remember(app?.id) { app?.banner?.toBitmap(320, 180)?.asImageBitmap() }
     val icon = remember(app?.id) { app?.icon?.toBitmap(96, 96)?.asImageBitmap() }
-    val colors = listOf(Color(0xFF233E65), Color(0xFF35314F), Color(0xFF1F4C50), Color(0xFF343F54))
+    val brand =
+        if (app == null)
+            when (title) {
+                "YouTube" -> Color(0xFFD91017)
+                "Disney+" -> Color(0xFF071B50)
+                "Apple TV" -> Color(0xFF111111)
+                "arte" -> Color(0xFFF65814)
+                "ARD" -> Color(0xFF093E9A)
+                "ZDF" -> Color(0xFFED8308)
+                else -> Raised
+            }
+        else Raised
     Tile(
         launch,
         modifier.semantics { contentDescription = title },
-        color = colors[(title.hashCode() and Int.MAX_VALUE) % colors.size],
-        focusedScale = 1.08f,
+        color = brand,
+        focusedScale = 1.06f,
         focusColor = Color.White,
     ) {
         if (banner != null && initials.isBlank())
@@ -445,7 +419,7 @@ private fun AppBanner(
                 Label(
                     title,
                     Modifier.padding(top = 5.dp),
-                    size = if (icon == null) 18 else 11,
+                    size = if (icon == null) 16 else 11,
                     bold = true,
                 )
             }
@@ -543,69 +517,6 @@ private fun forecastTime(time: String, daily: Boolean): String =
         }
         .getOrDefault(time)
 
-@Composable
-private fun ControlsCard(
-    title: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    entities: List<Entity>,
-    model: LauncherViewModel,
-    modifier: Modifier,
-    c: Config,
-) {
-    PanelCard(title, icon, modifier, c.darkPanels) {
-        LazyRow(
-            Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-            contentPadding = PaddingValues(2.dp),
-        ) {
-            items(entities, key = { it.id }) { entity ->
-                if (entity.domain == "scene")
-                    SceneTile(entity, model, Modifier.width(75.dp).fillMaxHeight(), compact = true)
-                else
-                    Tile(
-                        {
-                            model.service(
-                                entity,
-                                if (entity.domain == "scene") "turn_on"
-                                else if (entity.domain == "cover")
-                                    if (entity.state == "closed") "open_cover" else "close_cover"
-                                else "toggle",
-                            )
-                        },
-                        Modifier.width(60.dp).fillMaxHeight(),
-                        selected = false,
-                        enabled = entity.available,
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(5.dp),
-                        ) {
-                            Icon(
-                                if (entity.domain == "scene") Icons.Outlined.PlayCircle
-                                else if (entity.domain == "cover") Icons.Outlined.Blinds
-                                else Icons.Outlined.Lightbulb,
-                                null,
-                                Modifier.size(21.dp),
-                                tint = if (entity.state == "on") Color(0xFFFFD151) else Muted,
-                            )
-                            Label(entity.name, size = 9, bold = true)
-                            if (entity.domain != "scene")
-                                Label(
-                                    if (!entity.available) stringResource(R.string.unavailable)
-                                    else if (entity.state == "on") stringResource(R.string.on)
-                                    else stringResource(R.string.off),
-                                    size = 9,
-                                    color = Muted,
-                                )
-                        }
-                    }
-            }
-            if (entities.isEmpty())
-                item { Label(stringResource(R.string.entities), size = 10, color = Muted) }
-        }
-    }
-}
-
 fun adjustClimate(model: LauncherViewModel, entity: Entity, direction: Int) {
     val target = entity.number("temperature") ?: return
     val next =
@@ -626,7 +537,10 @@ private fun CameraCard(
 ) {
     val cameras = c.homeCameras()
     val columns = if (cameras.size > 2) 2 else 1
-    PanelCard(stringResource(R.string.cameras), Icons.Outlined.Videocam, modifier, c.darkPanels) {
+    Column(
+        modifier.clip(RoundedCornerShape(16.dp)).background(if (c.darkPanels) Ink else Panel),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         cameras.chunked(columns).forEach { row ->
             Row(
                 Modifier.weight(1f).fillMaxWidth(),
@@ -634,50 +548,67 @@ private fun CameraCard(
             ) {
                 row.forEach { camera ->
                     key(camera.entityId) {
+                        var playing by remember(camera) { mutableStateOf(false) }
                         Tile(
                             { openCamera(camera) },
                             Modifier.weight(1f)
                                 .fillMaxHeight()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(16.dp))
                                 .testTag("home-camera:${camera.entityId}"),
-                            color = Ink,
+                            color = Panel,
                         ) {
                             if (!c.demo && c.livePreviews)
-                                CameraPlayer(camera, model, Modifier.fillMaxSize())
+                                CameraPlayer(camera, model, Modifier.fillMaxSize()) { playing = it }
                             else
                                 Column(
-                                    Modifier.padding(7.dp),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                    Modifier.padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
                                     Icon(
                                         Icons.Outlined.Videocam,
                                         null,
-                                        Modifier.size(20.dp),
-                                        tint = Muted,
+                                        Modifier.size(38.dp),
+                                        tint = Color(0xFFA5C9EF),
                                     )
                                     Label(
                                         stringResource(
                                             if (c.demo) R.string.camera_demo
                                             else R.string.camera_open
                                         ),
-                                        size = 9,
+                                        size = 12,
                                         color = Muted,
                                     )
                                 }
                             Label(
                                 entities[camera.entityId]?.name ?: camera.entityId,
-                                Modifier.align(Alignment.BottomStart)
-                                    .background(Ink.copy(alpha = .8f))
+                                Modifier.align(Alignment.TopStart)
+                                    .padding(10.dp)
+                                    .background(
+                                        Color.Black.copy(alpha = .55f),
+                                        RoundedCornerShape(5.dp),
+                                    )
                                     .padding(5.dp),
-                                size = 9,
+                                size = if (cameras.size > 2) 11 else 15,
+                                bold = true,
                             )
+                            if (playing)
+                                Label(
+                                    stringResource(R.string.camera_live),
+                                    Modifier.align(Alignment.TopEnd)
+                                        .padding(10.dp)
+                                        .background(Color(0xFF207D46), RoundedCornerShape(5.dp))
+                                        .padding(5.dp),
+                                    size = 10,
+                                    bold = true,
+                                )
                         }
                     }
                 }
                 if (row.size < columns) Spacer(Modifier.weight(1f))
             }
         }
-        if (cameras.isEmpty()) Label(stringResource(R.string.entities), size = 11, color = Muted)
+        if (cameras.isEmpty()) Label(stringResource(R.string.entities), size = 12, color = Muted)
     }
 }
 

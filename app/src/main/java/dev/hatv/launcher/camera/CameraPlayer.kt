@@ -48,9 +48,16 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 
 @Composable
-fun CameraPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modifier = Modifier) {
+fun CameraPlayer(
+    camera: CameraConfig,
+    model: LauncherViewModel,
+    modifier: Modifier = Modifier,
+    onPlaybackChanged: (Boolean) -> Unit = {},
+) {
     val state by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     if (!state.isAtLeast(Lifecycle.State.STARTED)) return
+    val playbackChanged by rememberUpdatedState(onPlaybackChanged)
+    DisposableEffect(camera) { onDispose { playbackChanged(false) } }
     val status by model.ha.status.collectAsState()
     var rtcConfig by remember(camera) { mutableStateOf(JSONObject()) }
     var mode by
@@ -88,17 +95,32 @@ fun CameraPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modif
                 }
         }
     }
+    LaunchedEffect(mode) { playbackChanged(false) }
     Box(modifier.background(Color.Black)) {
         when (mode) {
             "endpoint" ->
-                WebRtcPlayer(camera.webRtc, model, Modifier.fillMaxSize(), null, JSONObject()) {
+                WebRtcPlayer(
+                    camera.webRtc,
+                    model,
+                    Modifier.fillMaxSize(),
+                    null,
+                    JSONObject(),
+                    playbackChanged,
+                ) {
                     mode = "hls"
                 }
             "ha-rtc" ->
-                WebRtcPlayer("", model, Modifier.fillMaxSize(), camera.entityId, rtcConfig) {
+                WebRtcPlayer(
+                    "",
+                    model,
+                    Modifier.fillMaxSize(),
+                    camera.entityId,
+                    rtcConfig,
+                    playbackChanged,
+                ) {
                     mode = "hls"
                 }
-            "hls" -> HlsPlayer(camera, model, Modifier.fillMaxSize())
+            "hls" -> HlsPlayer(camera, model, Modifier.fillMaxSize(), playbackChanged)
             else ->
                 Label(
                     stringResource(R.string.camera_connecting),
@@ -112,7 +134,12 @@ fun CameraPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modif
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-private fun HlsPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modifier) {
+private fun HlsPlayer(
+    camera: CameraConfig,
+    model: LauncherViewModel,
+    modifier: Modifier,
+    onPlaybackChanged: (Boolean) -> Unit,
+) {
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     var url by remember(camera) { mutableStateOf<String?>(null) }
@@ -121,6 +148,10 @@ private fun HlsPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: 
     var rendered by remember(camera) { mutableStateOf(false) }
     var error by remember(camera) { mutableStateOf("") }
     var retryIndex by remember(camera) { mutableIntStateOf(0) }
+    val notifyPlayback by rememberUpdatedState(onPlaybackChanged)
+    LaunchedEffect(rendered, buffering, failed) {
+        notifyPlayback(rendered && !buffering && !failed)
+    }
     StartedEffect(camera, retryIndex) {
         failed = false
         rendered = false
@@ -368,6 +399,7 @@ private fun WebRtcPlayer(
     modifier: Modifier,
     entityId: String?,
     config: JSONObject,
+    onPlaybackChanged: (Boolean) -> Unit,
     onFallback: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -391,6 +423,8 @@ private fun WebRtcPlayer(
         )
     }
     var rendered by remember { mutableStateOf(false) }
+    val notifyPlayback by rememberUpdatedState(onPlaybackChanged)
+    LaunchedEffect(rendered) { notifyPlayback(rendered) }
     fun fallback(run: Int, code: String) {
         if (generation.get() == run && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
             // Page reports fixed diagnostic categories, never external text.

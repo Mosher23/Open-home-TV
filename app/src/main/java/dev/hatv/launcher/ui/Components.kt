@@ -16,10 +16,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.tv.material3.*
 
-val Ink = Color(0xFF090F19)
-val Panel = Color(0xD9192736)
-val Muted = Color(0xFFAFBDCB)
-val Accent = Color(0xFF42C9EC)
+val Ink = Color(0xFF171717)
+val Panel = Color(0xFF262626)
+val Muted = Color(0xFFBDBDBD)
+val Accent = Color(0xFF70DCDD)
+val Raised = Color(0xFF333333)
+val Divider = Color(0xFF4A4A4A)
 val Green = Color(0xFF55D990)
 
 @Composable
@@ -48,10 +50,10 @@ fun Tile(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     selected: Boolean = false,
-    color: Color = Color(0xFF233140),
+    color: Color = Raised,
     enabled: Boolean = true,
     focusedScale: Float = 1.025f,
-    focusColor: Color = Accent,
+    focusColor: Color = Color.White,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Surface(
@@ -61,8 +63,8 @@ fun Tile(
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors =
             ClickableSurfaceDefaults.colors(
-                containerColor = if (selected) Color(0xFF225CE7) else color,
-                focusedContainerColor = Color(0xFF214D65),
+                containerColor = if (selected) Color(0xFF505050) else color,
+                focusedContainerColor = Color(0xFF414141),
                 contentColor = Color.White,
                 focusedContentColor = Color.White,
                 disabledContainerColor = color.copy(alpha = 0.45f),
@@ -106,7 +108,7 @@ fun PanelCard(
 ) {
     Column(
         modifier
-            .background(if (dark) Ink.copy(alpha = 0.95f) else Panel, RoundedCornerShape(16.dp))
+            .background(if (dark) Color(0xFF202020) else Panel, RoundedCornerShape(16.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {

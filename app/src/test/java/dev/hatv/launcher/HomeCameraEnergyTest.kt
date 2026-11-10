@@ -14,9 +14,9 @@ class HomeCameraEnergyTest {
             )
         val c = parseConfig(legacy)
         assertTrue(c.livePreviews)
-        assertEquals(2, c.homeCameraCount)
+        assertEquals(1, c.homeCameraCount)
         assertEquals(listOf("cameras", "energy", "weather", "lights", "scenes"), c.widgets)
-        assertEquals(listOf("camera.second", "camera.first"), c.homeCameras().map { it.entityId })
+        assertEquals(listOf("camera.second"), c.homeCameras().map { it.entityId })
         assertEquals("http://ha.local/a.m3u8", c.cameras.first().hls)
         assertEquals(
             c.copy(livePreviews = false, homeCameraCount = 4),

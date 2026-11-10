@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.Icon
@@ -118,40 +117,48 @@ fun EnergyCard(
     val nodes = readings(plan, states, today, values)
     val total = if (today) values[plan.homeEnergy] else powerKw(states[plan.homePower])
     val hasTotal = (if (today) plan.homeEnergy else plan.homePower).isNotBlank()
-    val other =
-        if (hasTotal)
-            Reading(
-                "__other",
-                stringResource(R.string.power_other),
-                remainder(total, nodes),
-                Color(0xFFA0ADB4),
-                true,
-            )
-        else null
     Tile(
         { model.showEnergyToday.value = !today },
         modifier.testTag("energy-card"),
-        color = Color.Transparent,
+        color = if (config.darkPanels) Ink else Panel,
     ) {
-        Column(
-            Modifier.fillMaxSize()
-                .background(
-                    if (config.darkPanels) Ink else Color(0xEB24252E),
-                    RoundedCornerShape(16.dp),
+        val visible = nodes.take(3)
+        // Home's remainder includes unlisted mapped appliances. Missing visible readings
+        // must not be silently treated as zero; Details keeps the full appliance list.
+        val summary =
+            if (hasTotal)
+                listOf(
+                    Reading(
+                        "__other",
+                        stringResource(R.string.power_other),
+                        if (visible.any { it.value == null }) null else remainder(total, visible),
+                        Muted,
+                        true,
+                    )
                 )
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            else if (nodes.size > 3)
+                listOf(
+                    Reading(
+                        "__more",
+                        stringResource(R.string.more_loads, nodes.size - 3),
+                        nodes
+                            .drop(3)
+                            .takeIf { list -> list.all { it.value != null } }
+                            ?.sumOf { it.value!! },
+                        Muted,
+                        true,
+                    )
+                )
+            else emptyList()
+        val chart = visible + summary
+        Column(
+            Modifier.fillMaxSize().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Icon(
-                    if (today) Icons.Outlined.BarChart else Icons.Outlined.Bolt,
-                    null,
-                    Modifier.size(17.dp),
-                    tint = Color(0xFFF5BB47),
-                )
                 Label(
                     stringResource(if (today) R.string.energy_consumption else R.string.energy),
                     Modifier.weight(1f),
@@ -162,13 +169,28 @@ fun EnergyCard(
                 if (open != null)
                     Tile(
                         open,
-                        Modifier.width(54.dp).height(24.dp).testTag("energy-details"),
-                        color = Color(0xFF343640),
+                        Modifier.width(48.dp).height(25.dp).testTag("energy-details"),
+                        color = Raised,
                     ) {
                         Label(stringResource(R.string.details), size = 10)
                     }
             }
-            if (nodes.isEmpty() && !hasTotal)
+            if (hasTotal)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    Icon(
+                        if (today) Icons.Outlined.BarChart else Icons.Outlined.Bolt,
+                        null,
+                        Modifier.size(28.dp),
+                        tint = Color(0xFFF5C84E),
+                    )
+                    val text = if (today) energyLabel(total) else powerLabel(total)
+                    Label(text, size = if (text.length > 8) 30 else 38, bold = true, maxLines = 1)
+                }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Divider))
+            if (chart.isEmpty())
                 Label(
                     stringResource(R.string.load_setup_hint),
                     Modifier.weight(1f),
@@ -176,78 +198,37 @@ fun EnergyCard(
                     color = Muted,
                 )
             else
-                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
-                    val capacity = (maxHeight / 16.dp).toInt().coerceIn(3, 10)
-                    val room = capacity - if (other != null) 1 else 0
-                    val chartNodes =
-                        if (nodes.size <= room) nodes
-                        else
-                            nodes.take(room - 1) +
-                                Reading(
-                                    "__more",
-                                    stringResource(R.string.more_loads, nodes.size - room + 1),
-                                    nodes
-                                        .drop(room - 1)
-                                        .takeIf { list -> list.all { it.value != null } }
-                                        ?.sumOf { it.value!! },
-                                    Muted,
-                                )
-                    val chart = chartNodes + listOfNotNull(other)
-                    LoadLines(chart, !today && config.animate, Modifier.matchParentSize())
-                    Column(
-                        Modifier.align(Alignment.CenterStart).width(maxWidth * .14f),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            Icons.Outlined.Home,
-                            null,
-                            Modifier.size(26.dp),
-                            tint = Color(0xFFF4AF2D),
-                        )
-                        if (hasTotal)
-                            Label(
-                                if (today) energyLabel(total) else powerLabel(total),
-                                size = 11,
-                                bold = true,
-                                maxLines = 1,
-                            )
-                    }
-                    Column(
-                        Modifier.fillMaxSize().padding(start = maxWidth * .34f),
-                        verticalArrangement = Arrangement.SpaceEvenly,
-                    ) {
+                Box(Modifier.fillMaxWidth().weight(1f)) {
+                    GalleryBranches(
+                        chart,
+                        !today && config.animate,
+                        Modifier.width(19.dp).fillMaxHeight(),
+                    )
+                    Column(Modifier.fillMaxSize().padding(start = 24.dp)) {
                         chart.forEach { node ->
                             Row(
-                                Modifier.fillMaxWidth()
-                                    .weight(1f)
-                                    .background(
-                                        if (node.other) Color.White.copy(alpha = .07f)
-                                        else Color.Transparent,
-                                        RoundedCornerShape(7.dp),
-                                    )
-                                    .padding(horizontal = 3.dp),
+                                Modifier.weight(1f).fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(7.dp),
                             ) {
                                 Icon(
                                     loadIcon(node.name, node.other),
                                     null,
-                                    Modifier.size(13.dp),
+                                    Modifier.size(20.dp),
                                     tint = node.color,
                                 )
                                 Label(
                                     node.name,
                                     Modifier.weight(1f),
-                                    size = 11,
-                                    color = if (node.other) Muted else Color(0xFFE9E7EE),
-                                    maxLines = 1,
+                                    size = 13,
+                                    maxLines = 2,
+                                    color = if (node.other) Muted else Color.White,
                                 )
                                 Label(
                                     if (today) energyLabel(node.value) else powerLabel(node.value),
-                                    size = 11,
-                                    color = if (node.other) Muted else Color(0xFFE9E7EE),
+                                    size = 13,
                                     maxLines = 1,
+                                    color = if (node.other) Muted else Color.White,
                                 )
                             }
                         }
@@ -261,11 +242,50 @@ fun EnergyCard(
                             if (data.failed && !config.demo) R.string.energy_unavailable
                             else R.string.select_power
                         )
-                else stringResource(R.string.now) + " · " + stringResource(R.string.select_energy),
+                else stringResource(R.string.select_energy),
                 size = 9,
                 color = Muted,
                 maxLines = 1,
             )
+        }
+    }
+}
+
+@Composable
+private fun GalleryBranches(nodes: List<Reading>, animate: Boolean, modifier: Modifier) {
+    val phase =
+        if (animate && nodes.any { (it.value ?: 0.0) > 0 })
+            rememberInfiniteTransition(label = "gallery-loads")
+                .animateFloat(
+                    0f,
+                    1f,
+                    infiniteRepeatable(tween(2800, easing = LinearEasing)),
+                    label = "flow",
+                )
+                .value
+        else 0f
+    Canvas(modifier) {
+        val row = size.height / nodes.size
+        drawLine(
+            Muted.copy(alpha = .5f),
+            Offset(4.dp.toPx(), 0f),
+            Offset(4.dp.toPx(), size.height - row / 2),
+            1.dp.toPx(),
+        )
+        nodes.forEachIndexed { index, node ->
+            val y = row * (index + .5f)
+            val path =
+                Path().apply {
+                    moveTo(4.dp.toPx(), y - row * .35f)
+                    quadraticBezierTo(4.dp.toPx(), y, size.width, y)
+                }
+            drawPath(path, Muted.copy(alpha = .7f), style = Stroke(1.2.dp.toPx()))
+            if (animate && (node.value ?: 0.0) > 0)
+                drawCircle(
+                    node.color,
+                    1.6.dp.toPx(),
+                    Offset(4.dp.toPx() + phase * (size.width - 4.dp.toPx()), y),
+                )
         }
     }
 }

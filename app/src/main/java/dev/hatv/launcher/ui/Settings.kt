@@ -10,6 +10,9 @@ import androidx.compose.material3.darkColorScheme as inputDarkColors
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -31,6 +34,15 @@ fun SettingsPage(model: LauncherViewModel) {
         token = ""
     }
     var section by remember { mutableStateOf("main") }
+    val countDownFocus = remember { FocusRequester() }
+    val countUpFocus = remember { FocusRequester() }
+    var countReady by remember(section) { mutableStateOf(false) }
+    LaunchedEffect(section, countReady) {
+        if (section == "cameras" && countReady) {
+            if (c.homeCameraCount > 0) countDownFocus.requestFocus()
+            else countUpFocus.requestFocus()
+        }
+    }
     val listState = rememberLazyListState()
     LaunchedEffect(section) { listState.scrollToItem(0) }
     var filter by remember { mutableStateOf("") }
@@ -42,7 +54,14 @@ fun SettingsPage(model: LauncherViewModel) {
         PhoneSetupScreen(model) { section = "main" }
         return
     }
-    InputTheme(colorScheme = inputDarkColors()) {
+    InputTheme(
+        colorScheme =
+            inputDarkColors(
+                primary = androidx.compose.ui.graphics.Color.White,
+                surface = Panel,
+                background = Ink,
+            )
+    ) {
         LazyColumn(
             Modifier.fillMaxSize().testTag("settings-list"),
             state = listState,
@@ -56,6 +75,8 @@ fun SettingsPage(model: LauncherViewModel) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Label(stringResource(R.string.settings), size = 24, bold = true)
+                    if (section == "main")
+                        Label(dev.hatv.launcher.BuildConfig.VERSION_NAME, size = 11, color = Muted)
                     if (section != "main")
                         Action(stringResource(R.string.back), { section = "main" })
                 }
@@ -517,15 +538,25 @@ fun SettingsPage(model: LauncherViewModel) {
                         ) {
                             Action(
                                 "−",
-                                { c = c.copy(homeCameraCount = c.homeCameraCount - 1) },
-                                Modifier.testTag("home-camera-count-down"),
+                                {
+                                    c = c.copy(homeCameraCount = c.homeCameraCount - 1)
+                                    if (c.homeCameraCount == 0) countUpFocus.requestFocus()
+                                },
+                                Modifier.testTag("home-camera-count-down")
+                                    .focusRequester(countDownFocus)
+                                    .onGloballyPositioned { countReady = true },
                                 enabled = c.homeCameraCount > 0,
                             )
                             Label("${c.homeCameraCount}", size = 22)
                             Action(
                                 "+",
-                                { c = c.copy(homeCameraCount = c.homeCameraCount + 1) },
-                                Modifier.testTag("home-camera-count-up"),
+                                {
+                                    c = c.copy(homeCameraCount = c.homeCameraCount + 1)
+                                    if (c.homeCameraCount == MAX_HOME_CAMERAS)
+                                        countDownFocus.requestFocus()
+                                },
+                                Modifier.testTag("home-camera-count-up")
+                                    .focusRequester(countUpFocus),
                                 enabled = c.homeCameraCount < MAX_HOME_CAMERAS,
                             )
                         }
