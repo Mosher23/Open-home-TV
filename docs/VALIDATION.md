@@ -1,7 +1,8 @@
 # Validation
 
-## Version 0.5.0 — Gallery Grey native implementation
+## Version 0.5.1 / 0.5.0 — Gallery Grey native implementation
 
+- Version 0.5.1 additionally restores an explicit localized authentication-failed status, rather than describing a stopped invalid-token connection as retrying. The full native suite was rerun on the final patch.
 - Final debug build, 22 JVM tests, 17 native Android TV tests, Android lint and 3 phone-protocol Node tests passed on the isolated API 34 / 1080p TV emulator. The phone bundle was rebuilt and included in the final APK. No runtime dependencies or permissions changed.
 - The native Gallery layout removes the old header/branding and mountain wallpaper. Clock/weather, power and edge-to-edge camera panels occupy the top row; colorful scenes/lights sit above a seven-banner dock. Shared surfaces are neutral grey with white focus borders. Installed app artwork remains native; demo service tiles use text/color without bundled third-party logos.
 - New native assertions check aligned top edges within the first 8% of the screen, increasing weather/power/camera widths, a visible All apps dock target, hourly/daily forecast access and Back restoring weather focus. Existing Home count/order, zero/four-feed geometry, Power/Today, scenes and navigation tests pass.

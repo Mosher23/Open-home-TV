@@ -2,7 +2,9 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.5.0 — Gallery Grey: header-free Home, colorful icons and a full-width app dock.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.5.1 — Gallery Grey: header-free Home, colorful icons and a full-width app dock.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+
+[Download v0.5.1 APK](https://github.com/Mosher23/Open-home-TV/releases/download/v0.5.1/Open-home-TV-0.5.1.apk) · [Release notes](https://github.com/Mosher23/Open-home-TV/releases/tag/v0.5.1)
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 

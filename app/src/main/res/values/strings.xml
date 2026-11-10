@@ -64,4 +64,5 @@
 <string name="camera_view_saved">Camera view saved</string>
 <string name="camera_view_unsaved">Unsaved changes</string>
 <string name="camera_live">Live</string>
+<string name="connection_auth_failed">Authentication failed</string>
 </resources>

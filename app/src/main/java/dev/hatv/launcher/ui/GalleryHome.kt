@@ -118,8 +118,13 @@ internal fun GalleryClockWeather(
                 )
                 Label(
                     stringResource(
-                        if (config.demo) R.string.demo
-                        else if (connected) R.string.online else R.string.offline
+                        when {
+                            config.demo -> R.string.demo
+                            connected -> R.string.online
+                            status == HomeAssistantClient.Status.AUTH_ERROR ->
+                                R.string.connection_auth_failed
+                            else -> R.string.offline
+                        }
                     ),
                     size = 9,
                     color = Muted,
