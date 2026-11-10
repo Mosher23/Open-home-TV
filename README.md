@@ -2,13 +2,13 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.5.1 — Gallery Grey: header-free Home, colorful icons and a full-width app dock.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.5.2 — live camera grid: two feeds per row, automatic playback and remote fullscreen.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
-[Download v0.5.1 APK](https://github.com/Mosher23/Open-home-TV/releases/download/v0.5.1/Open-home-TV-0.5.1.apk) · [Release notes](https://github.com/Mosher23/Open-home-TV/releases/tag/v0.5.1)
+[Download v0.5.2 APK](https://github.com/Mosher23/Open-home-TV/releases/download/v0.5.2/Open-home-TV-0.5.2.apk) · [Release notes](https://github.com/Mosher23/Open-home-TV/releases/tag/v0.5.2)
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
-[Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Devices](docs/images/devices-en.png) · [Calendar](docs/images/calendar-en.png) · [Today energy](docs/images/energy-today-en.png) · [Scenes](docs/images/scenes-en.png) · [Settings](docs/images/settings-en.png)
+[Apps](docs/images/apps-en.png) · [Climate](docs/images/climate-en.png) · [Devices](docs/images/devices-en.png) · [Calendar](docs/images/calendar-en.png) · [Today energy](docs/images/energy-today-en.png) · [Scenes](docs/images/scenes-en.png) · [Settings](docs/images/settings-en.png) · [Cameras](docs/images/cameras-en.png)
 
 Manual Settings fields stay in browse mode until you press **Select/OK**. The editor opens the keyboard explicitly; **Done** applies the draft, and **Cancel/Back** discards it and restores field focus. The main Settings **Save** still saves your configuration.
 
@@ -30,6 +30,7 @@ Use a trusted private home network. Setup API payloads are encrypted; the local 
 - All HA scenes appear automatically, including scenes never activated before. Modern colored icons distinguish morning, night, cinema, home, eco and other scenes; thermostat presets use the same icon style. Lights and switches remain configurable. Heating controls are in Climate and Devices, with no heating panel on Home.
 - Climate groups sensors and controls by HA area, inheriting device areas when needed: temperature, humidity, CO₂, PM2.5, thermostat setpoint/modes/presets, and supported cover open/stop/close actions. Hidden and diagnostic entities are excluded.
 - Calendar automatically discovers visible HA calendars and loads a seven-day agenda on demand, with calendar filters, all-day dates in HA’s time zone, event details, partial-failure reporting and Refresh.
+- Cameras opens directly into a two-column live video grid in your configured camera order. Visible feeds start automatically even when Home previews are disabled. Select/OK opens fullscreen; Back returns to the same card and scroll position. Off-screen feeds stop, with at most four grid players active.
 - Camera fullscreen playback and live Home previews enabled by default, with one Home feed for a new configuration. Choose 0–4 feeds and their sequence from TV Settings → Home cameras and streams or phone setup. Zero hides the Home camera panel; three/four feeds use a grid, in row order. Automatic HA-native WebRTC, optional explicit go2rtc endpoint, then Media3 HLS fallback. Cropped video fills cards. If video fails, a labeled snapshot refreshes every five seconds while HLS retries; it is never labeled live. Cameras stop when hidden.
 - HA URL/token settings, connection testing, entity selection, camera endpoints, app selection, widget order, panel appearance and optional animation.
 - Android TV HOME registration, normal TV app entry, Android settings access, and safe return to the stock launcher.
@@ -89,7 +90,7 @@ The load card uses your HA Energy dashboard automatically. To override it, map *
 - WebRTC uses Android System WebView and HA camera capabilities/client configuration, offer subscription, answer and ICE candidate events. Older HA versions without these commands fall back to HLS. An explicit go2rtc HTTP SDP endpoint remains supported.
 - WebRTC uses HA’s ICE configuration and sends local candidates throughout negotiation. Any STUN/TURN servers come from your HA configuration; none are hardcoded by the launcher. Local host candidates work without an external service. WebView support, codecs, LAN routing and TV decoder limits still determine compatibility. HLS is the fallback.
 - The green Live badge appears only after video frames arrive and playback is ready. A connected WebRTC session must deliver decoded frames; a missing or frozen video falls back to HLS. HLS disables audio decoding for muted previews and shows safe error codes (for example HTTP_401 or DECODING_FAILED) beside snapshot fallback. Snapshot refreshes are still images, not live video.
-- At most four configured preview players or one fullscreen player are active. Prefer low-resolution camera substreams. Additional selected cameras are accessible from the Cameras screen without starting hidden streams.
+- At most four visible grid/Home players or one fullscreen player are active. Prefer low-resolution camera substreams. The Cameras grid scrolls through all selected cameras, prioritizes the four most visible cards during scrolling and never starts off-screen or prefetched streams. Leaving Cameras stops its players.
 - Sony default-launcher restrictions and HDMI visibility vary by firmware. They cannot be bypassed by a normal application.
 - Custom app icons currently support installed package icons or short text initials; arbitrary image import and drag-and-drop widget sizing are future extensions. Widget order is configurable within each row, with three large and two compact slots.
 

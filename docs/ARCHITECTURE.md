@@ -49,3 +49,10 @@ The TV camera settings section exposes the existing validated Save action at its
 Shared Tiles use grey selected/focused fills, a white focus outline and colored content icons. Camera callbacks report actual rendered/ready playback; only that state displays Live. Stream startup, errors and snapshots do not. Native tests check two simultaneous real HLS fixtures report live and clear the flag on disposal. No synthetic garden photograph is shown as a live camera in demo.
 
 Camera Settings entry focuses the count controls after layout, with focus handed to the enabled counterpart at zero/four. Existing explicit Save and persistence behavior remains; only missing/new camera-count defaults migrate to one. Other UI proposal phases remain separate from the implemented Home layout and shared styling.
+
+
+## Live camera grid (0.5.2)
+
+`ui/Cameras.kt` shares edge-to-edge camera tiles between Home and a two-column `LazyVerticalGrid`. The grid starts visible feeds independently of the Home preview toggle. Player composition is gated by viewport intersection, with the four most exposed cards taking priority if scrolling intersects three rows. Prefetched/off-screen items own no player. The existing camera player still handles HA WebRTC negotiation, HLS fallback, snapshots and lifecycle disposal.
+
+The Launcher retains grid scroll state while fullscreen removes all preview composition. Back or the fullscreen Back action restores focus to the selected camera; leaving the Cameras route disposes its players. Demo cards remain clearly labelled placeholders and never request camera streams.

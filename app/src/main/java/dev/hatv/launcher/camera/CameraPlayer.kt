@@ -96,7 +96,7 @@ fun CameraPlayer(
         }
     }
     LaunchedEffect(mode) { playbackChanged(false) }
-    Box(modifier.background(Color.Black)) {
+    Box(modifier.background(Color.Black).testTag("camera-player:${camera.entityId}")) {
         when (mode) {
             "endpoint" ->
                 WebRtcPlayer(

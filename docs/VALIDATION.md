@@ -1,5 +1,12 @@
 # Validation
 
+## Version 0.5.2 — live camera grid
+
+- Cameras now renders two feeds per row and starts visible streams immediately, independently of the Home preview setting. Video fills each rounded card, with a name overlay and a Live badge driven by decoded/ready playback.
+- At most four intersecting cards own players, prioritizing the most exposed cards during scrolling. Off-screen and prefetched cards own no decoder/WebView. Fullscreen removes all grid players; Back or the on-screen Back action restores the selected camera and scroll position.
+- The new native regression test uses six configured HLS fixtures, with Home previews disabled and no Home cameras. It decodes four simultaneous feeds, verifies two-column geometry and D-pad movement, checks fullscreen exclusivity and focus restoration, scrolls to the final row and verifies the initial off-screen players are removed. Leaving Cameras removes the remaining players.
+- The debug APK builds; lint passes, all 22 JVM tests pass and all 18 native Android TV tests pass. The preserved signing certificate supports in-place updates. Real-camera playback and decoder limits on the physical Sony remain hardware checks. Camera count/order/endpoints, authentication, permissions and dependencies are unchanged.
+
 ## Version 0.5.1 / 0.5.0 — Gallery Grey native implementation
 
 - Version 0.5.1 additionally restores an explicit localized authentication-failed status, rather than describing a stopped invalid-token connection as retrying. The full native suite was rerun on the final patch.

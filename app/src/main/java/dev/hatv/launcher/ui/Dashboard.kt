@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -59,6 +60,8 @@ fun Launcher(model: LauncherViewModel) {
     var fullscreen by remember { mutableStateOf<CameraConfig?>(null) }
     val homeFocus = remember { FocusRequester() }
     val cameraBackFocus = remember { FocusRequester() }
+    val cameraGrid = rememberLazyGridState()
+    var cameraRestoreId by remember { mutableStateOf<String?>(null) }
     var homeReady by remember { mutableStateOf(false) }
     var cameraFocused by remember(fullscreen) { mutableStateOf(false) }
     val menu =
@@ -83,9 +86,18 @@ fun Launcher(model: LauncherViewModel) {
             Icons.Outlined.CalendarMonth,
             Icons.Outlined.Settings,
         )
+    fun closeCamera() {
+        val camera = fullscreen
+        fullscreen = null
+        if (page == "cameras" && camera != null) cameraRestoreId = camera.entityId
+        else homeFocus.requestFocus()
+    }
     BackHandler {
-        if (fullscreen != null) fullscreen = null else page = "home"
-        homeFocus.requestFocus()
+        if (fullscreen != null) closeCamera()
+        else {
+            page = "home"
+            homeFocus.requestFocus()
+        }
     }
 
     val homeRequest by model.homeRequest.collectAsStateWithLifecycle()
@@ -174,7 +186,15 @@ fun Launcher(model: LauncherViewModel) {
                                 "scenes",
                                 "devices" -> DevicePage(model, config, entities, page == "scenes")
                                 "cameras" ->
-                                    CamerasPage(model, config, entities, { fullscreen = it })
+                                    CamerasPage(
+                                        model,
+                                        config,
+                                        entities,
+                                        cameraGrid,
+                                        cameraRestoreId,
+                                        { cameraRestoreId = null },
+                                        { fullscreen = it },
+                                    )
                                 "climate" -> RoomsPage(model, config)
                                 "calendar" -> CalendarPage(model, config)
                                 "settings" -> SettingsPage(model)
@@ -190,10 +210,7 @@ fun Launcher(model: LauncherViewModel) {
                             }
                         Action(
                             stringResource(R.string.back),
-                            {
-                                fullscreen = null
-                                homeFocus.requestFocus()
-                            },
+                            { closeCamera() },
                             Modifier.align(Alignment.TopStart)
                                 .padding(20.dp)
                                 .focusRequester(cameraBackFocus)
@@ -548,61 +565,19 @@ private fun CameraCard(
             ) {
                 row.forEach { camera ->
                     key(camera.entityId) {
-                        var playing by remember(camera) { mutableStateOf(false) }
-                        Tile(
-                            { openCamera(camera) },
-                            Modifier.weight(1f)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(16.dp))
-                                .testTag("home-camera:${camera.entityId}"),
-                            color = Panel,
-                        ) {
-                            if (!c.demo && c.livePreviews)
-                                CameraPlayer(camera, model, Modifier.fillMaxSize()) { playing = it }
-                            else
-                                Column(
-                                    Modifier.padding(12.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Icon(
-                                        Icons.Outlined.Videocam,
-                                        null,
-                                        Modifier.size(38.dp),
-                                        tint = Color(0xFFA5C9EF),
-                                    )
-                                    Label(
-                                        stringResource(
-                                            if (c.demo) R.string.camera_demo
-                                            else R.string.camera_open
-                                        ),
-                                        size = 12,
-                                        color = Muted,
-                                    )
-                                }
-                            Label(
-                                entities[camera.entityId]?.name ?: camera.entityId,
-                                Modifier.align(Alignment.TopStart)
-                                    .padding(10.dp)
-                                    .background(
-                                        Color.Black.copy(alpha = .55f),
-                                        RoundedCornerShape(5.dp),
-                                    )
-                                    .padding(5.dp),
-                                size = if (cameras.size > 2) 11 else 15,
-                                bold = true,
-                            )
-                            if (playing)
-                                Label(
-                                    stringResource(R.string.camera_live),
-                                    Modifier.align(Alignment.TopEnd)
-                                        .padding(10.dp)
-                                        .background(Color(0xFF207D46), RoundedCornerShape(5.dp))
-                                        .padding(5.dp),
-                                    size = 10,
-                                    bold = true,
-                                )
-                        }
+                        CameraFeedTile(
+                            camera,
+                            model,
+                            c,
+                            entities[camera.entityId]?.name ?: camera.entityId,
+                            play = c.livePreviews,
+                            modifier =
+                                Modifier.weight(1f)
+                                    .fillMaxHeight()
+                                    .testTag("home-camera:${camera.entityId}"),
+                            compact = cameras.size > 2,
+                            onClick = { openCamera(camera) },
+                        )
                     }
                 }
                 if (row.size < columns) Spacer(Modifier.weight(1f))
@@ -803,30 +778,6 @@ private fun DevicePage(
                 }
             if (selected.isEmpty()) item { Label(stringResource(R.string.entities), color = Muted) }
         }
-    }
-}
-
-@Composable
-private fun CamerasPage(
-    model: LauncherViewModel,
-    c: Config,
-    entities: Map<String, Entity>,
-    openCamera: (CameraConfig) -> Unit,
-) {
-    val cameras = c.selectedCameras()
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(5.dp),
-    ) {
-        item { Label(stringResource(R.string.cameras), size = 24, bold = true) }
-        items(cameras, key = { it.entityId }) { camera ->
-            Action(
-                entities[camera.entityId]?.name ?: camera.entityId,
-                { openCamera(camera) },
-                Modifier.fillMaxWidth().height(90.dp),
-            )
-        }
-        if (cameras.isEmpty()) item { Label(stringResource(R.string.entities), color = Muted) }
     }
 }
 
