@@ -2,7 +2,7 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.4.0 — live Home cameras, Today energy and colorful scenes/presets.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.4.1 — camera negotiation and live playback recovery fixes.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
@@ -84,7 +84,8 @@ The load card uses your HA Energy dashboard automatically. To override it, map *
 ## Camera and hardware limits
 
 - WebRTC uses Android System WebView and HA camera capabilities/client configuration, offer subscription, answer and ICE candidate events. Older HA versions without these commands fall back to HLS. An explicit go2rtc HTTP SDP endpoint remains supported.
-- Direct LAN ICE is used with no external STUN/TURN service. WebView support, codecs, camera integration, LAN routing and TV decoder limits determine playback compatibility. HLS is the fallback.
+- WebRTC uses HA’s ICE configuration and sends local candidates throughout negotiation. Any STUN/TURN servers come from your HA configuration; none are hardcoded by the launcher. Local host candidates work without an external service. WebView support, codecs, LAN routing and TV decoder limits still determine compatibility. HLS is the fallback.
+- A connected WebRTC session must deliver decoded frames; a missing or frozen video falls back to HLS. HLS disables audio decoding for muted previews and shows safe error codes (for example HTTP_401 or DECODING_FAILED) beside snapshot fallback. Snapshot refreshes are still images, not live video.
 - At most four configured preview players or one fullscreen player are active. Prefer low-resolution camera substreams. Additional selected cameras are accessible from the Cameras screen without starting hidden streams.
 - Sony default-launcher restrictions and HDMI visibility vary by firmware. They cannot be bypassed by a normal application.
 - Custom app icons currently support installed package icons or short text initials; arbitrary image import and drag-and-drop widget sizing are future extensions. Widget order is configurable within each row, with three large and two compact slots.
@@ -93,7 +94,7 @@ The load card uses your HA Energy dashboard automatically. To override it, map *
 
 [Architecture](docs/ARCHITECTURE.md) · [Validation and hardware checks](docs/VALIDATION.md) · [Contributing](CONTRIBUTING.md)
 
-Protocol tests exercise authentication, invalid-token handling, state snapshot/event ordering, reconnection, command responses, REST authorization and URL/unit validation. Live-camera and physical-BRAVIA tests require your own test hardware and HA endpoints. See the validation report for measured emulator results and remaining checks.
+Protocol tests exercise authentication, invalid-token handling, state snapshot/event ordering, reconnection, command responses, REST authorization and URL/unit validation. Native playback tests decode synthetic WebRTC video and two local HLS streams, check stalled-video recovery and reopen players after disposal. Real-camera and physical-BRAVIA validation still requires your own hardware and HA endpoints. See the validation report for measured emulator results and remaining checks.
 
 Primary API references: [Compose for TV](https://developer.android.com/training/tv/playback/compose), [HA WebSocket API](https://developers.home-assistant.io/docs/api/websocket/), [HA REST API](https://developers.home-assistant.io/docs/api/rest/), [go2rtc](https://github.com/AlexxIT/go2rtc).
 

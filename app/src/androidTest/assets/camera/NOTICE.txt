@@ -1,0 +1,3 @@
+HLS video fixture from AndroidX Media3, Copyright The Android Open Source Project, Apache License 2.0.
+Source: https://github.com/androidx/media/tree/release/libraries/test_data/src/test/assets/media/hls/multi-segment
+playlist.m3u8 modified to omit ENDLIST for the live playback test. Test assets only; not shipped in the launcher APK.

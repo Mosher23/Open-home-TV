@@ -54,3 +54,17 @@ Choose camera entities. Leave endpoints blank for automatic HA-native WebRTC wit
 Use lower resolution substreams (e.g. 640×360 or 720p) for dashboard previews. Two Home previews are enabled by default. Choose 0–4 and their order in Settings → Home cameras and streams, or phone setup. Zero hides the panel; three/four feeds use a grid. Credentials in camera endpoint URLs are not supported; use a trusted LAN endpoint or HA HLS authentication. Do not expose an unauthenticated go2rtc server to the Internet.
 
 For updates, use `adb install -r` with an APK signed with the same key. See [update signing details](PHONE-SETUP.md#updating-an-existing-installation) before switching between local and CI builds.
+
+### Diagnosing snapshot fallback
+
+If a card says “Snapshot fallback”, its JPEG updates every five seconds while live HLS retries; this is not live video. Version 0.4.1 also displays the safe playback error code when a snapshot is available. Keep camera endpoint overrides blank for automatic HA negotiation unless you have a known compatible endpoint.
+
+If a clear/high-resolution feed fails but the HA phone player works, try that camera’s H.264 low-resolution/fluent entity for Home previews. TV decoder and WebView codec support can differ from your phone. The launcher does not change your camera settings.
+
+For local diagnostics while the launcher is open, capture only its safe playback log tag:
+
+```sh
+adb -s YOUR_TV_IP:5555 logcat -d -s CameraPlayback:W
+```
+
+Codes such as `REMOTE_ICE`, `NO_VIDEO`, `VIDEO_STALLED`, `HTTP_401` or `DECODING_FAILED` identify the failed stage without printing credentials or stream URLs. Do not post unfiltered system logs publicly.

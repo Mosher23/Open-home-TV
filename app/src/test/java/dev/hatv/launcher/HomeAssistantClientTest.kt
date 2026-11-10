@@ -57,6 +57,17 @@ class HomeAssistantClientTest {
                                         """{"id":$id,"type":"event","event":{"type":"answer","answer":"test-sdp"}}"""
                                     )
                                 }
+                                "camera/webrtc/candidate" -> {
+                                    assertEquals("test-session", j.getString("session_id"))
+                                    assertEquals("camera.test", j.getString("entity_id"))
+                                    assertEquals(
+                                        "candidate:test",
+                                        j.getJSONObject("candidate").getString("candidate"),
+                                    )
+                                    ws.send(
+                                        """{"id":$id,"type":"result","success":true,"result":null}"""
+                                    )
+                                }
                                 "unsubscribe_events" ->
                                     ws.send(
                                         """{"id":$id,"type":"result","success":true,"result":null}"""
@@ -142,7 +153,12 @@ class HomeAssistantClientTest {
                 assertEquals("session", rtc.events.receive().getString("type"))
                 assertEquals("test-sdp", rtc.events.receive().getString("answer"))
             }
+            rtc.addCandidate(
+                "test-session",
+                JSONObject().put("candidate", "candidate:test").put("sdpMid", "0"),
+            )
             rtc.close()
+            assertTrue(runCatching { rtc.addCandidate("test-session", JSONObject()) }.isFailure)
             assertTrue(rtc.events.receiveCatching().isClosed)
             val active = client.cameraWebRtc("camera.test", "offer-sdp")
             client.disconnect()

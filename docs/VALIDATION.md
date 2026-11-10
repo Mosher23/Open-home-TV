@@ -1,5 +1,16 @@
 # Validation
 
+## Version 0.4.1 — video signaling and playback recovery
+
+- Build, 22 JVM tests, 15 Android tests and Android lint passed on the isolated API 34 Android TV emulator. Physical TV app data and installed APK were not changed.
+- New native playback tests decode an animated synthetic WebRTC camera using the production receiver page and real trickle ICE. Remote candidates intentionally omit both mid/index fields. After decoded frames stop, the watchdog reports VIDEO_STALLED. A transport connection alone does not pass the test.
+- Two simultaneous local fMP4 HLS streams render first frames, then both render again after their players leave and re-enter composition. The test assets are Apache-licensed Media3 fixtures, bundled only in the test APK.
+- One existing Settings test initially failed to find an uncomposed camera-count control; its isolated rerun passed. It now explicitly waits for focus and scrolls the lazy target into view before Select. The final full suite passed.
+- The HA protocol test sends camera/webrtc/candidate with the session ID, checks entity/candidate payloads and rejects sends after session close. Existing disconnect/reconnection tests also pass.
+- Read-only inspection confirmed the selected real cameras have no endpoint overrides and HA provides WebRTC configuration. The user reports both cameras play in HA but only snapshots appear in v0.4.0. The installed launcher was not running during the read-only ADB checks, so no current playback error or real-camera first frame was captured. These fixes address verified code defects; playback on the physical Sony with those cameras remains unverified.
+- WebRTC now consumes HA’s optional ICE configuration, sends candidates arriving after the offer and supplies missing remote candidate mids. It matches HA’s receive-only audio/video negotiation while keeping playback muted. The decoded-frame watchdog, native no-frame timeout and renderer-loss fallback cover empty/stalled sessions. HLS skips unused audio decoders and displays safe error codes even with a snapshot.
+- No HA settings, camera configuration, device state, permissions or production dependencies changed. No private camera images, URLs, credentials or SDP were added to the repository.
+
 ## Version 0.4.0 — cameras, loads and action icons
 
 - Build, 22 JVM tests, 13 Android tests and lint passed. Node protocol tests also passed (3).

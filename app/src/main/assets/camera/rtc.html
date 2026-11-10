@@ -1,0 +1,89 @@
+<!doctype html>
+<html><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body,video{margin:0;width:100%;height:100%;background:#090f19;overflow:hidden}video{object-fit:cover}</style>
+<video id="v" autoplay muted playsinline></video>
+<script>
+"use strict";
+const run = __RUN__, trickle = __TRICKLE__, config = JSON.parse(__CONFIG__);
+const video = document.getElementById("v");
+let pc, stopped = false, remoteCandidates = [], watchdog, lastProgress = Date.now();
+let lastFrame = -1, hasFrames = false, wasPlaying = false;
+function fail(code) {
+  if (stopped) return;
+  window.stop();
+  NativeRtc.failed(run, code);
+}
+window.stop = () => {
+  stopped = true;
+  clearInterval(watchdog);
+  if (pc) pc.close();
+  video.srcObject?.getTracks().forEach(track => track.stop());
+  video.srcObject = null;
+};
+function normalizeCandidate(candidate) {
+  // Some HA providers omit both fields. The HA frontend supplies the first mid.
+  if (candidate.sdpMid == null && candidate.sdpMLineIndex == null)
+    return { ...candidate, sdpMid: pc?.remoteDescription?.sdp.match(/^a=mid:(.+)$/m)?.[1]?.trim() || "0" };
+  return candidate;
+}
+window.candidate = async candidate => {
+  if (stopped) return;
+  try {
+    if (pc?.remoteDescription) await pc.addIceCandidate(normalizeCandidate(candidate));
+    else remoteCandidates.push(candidate);
+  } catch (_) { fail("REMOTE_ICE"); }
+};
+window.answer = async sdp => {
+  if (stopped) return;
+  try {
+    await pc.setRemoteDescription({type: "answer", sdp});
+    for (const candidate of remoteCandidates) await pc.addIceCandidate(normalizeCandidate(candidate));
+    remoteCandidates = [];
+  } catch (_) { fail("ANSWER"); }
+};
+// A connected ICE transport is not proof of decoded video. Also recover stalled media.
+watchdog = setInterval(() => {
+  const now = Date.now();
+  const frame = video.getVideoPlaybackQuality?.().totalVideoFrames ?? video.webkitDecodedFrameCount ?? video.currentTime;
+  if (video.readyState >= 2 && video.videoWidth > 0 && frame !== lastFrame) {
+    lastFrame = frame;
+    lastProgress = now;
+    hasFrames = true;
+    if (!wasPlaying) { wasPlaying = true; NativeRtc.playing(run); }
+  }
+  if (now - lastProgress > 25000) fail(hasFrames ? "VIDEO_STALLED" : "NO_VIDEO");
+}, 1000);
+(async () => {
+  try {
+    pc = new RTCPeerConnection(config.configuration || {iceServers: []});
+    if (config.dataChannel) pc.createDataChannel(config.dataChannel);
+    // Match HA's receive-only offer; muted playback never requests microphone access.
+    pc.addTransceiver("audio", {direction: "recvonly"});
+    pc.addTransceiver("video", {direction: "recvonly"});
+    pc.ontrack = event => {
+      if (event.track.kind !== "video" || stopped) return;
+      video.srcObject = new MediaStream([event.track]);
+      video.play().catch(() => fail("PLAYBACK"));
+    };
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "failed") fail("CONNECTION");
+    };
+    if (trickle) pc.onicecandidate = event => {
+      if (!stopped && event.candidate?.candidate)
+        NativeRtc.candidate(run, JSON.stringify(event.candidate.toJSON()));
+    };
+    await pc.setLocalDescription(await pc.createOffer());
+    if (!trickle) {
+      // HTTP SDP endpoints have no candidate channel: include all gathered candidates.
+      await new Promise(resolve => {
+        if (pc.iceGatheringState === "complete") return resolve();
+        const timer = setTimeout(resolve, 8000);
+        pc.onicegatheringstatechange = () => {
+          if (pc.iceGatheringState === "complete") { clearTimeout(timer); resolve(); }
+        };
+      });
+    }
+    if (!stopped) NativeRtc.offer(run, pc.localDescription.sdp);
+  } catch (_) { fail("UNSUPPORTED"); }
+})();
+</script></html>

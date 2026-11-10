@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -21,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.currentStateAsState
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -50,7 +52,7 @@ fun CameraPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modif
     val state by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     if (!state.isAtLeast(Lifecycle.State.STARTED)) return
     val status by model.ha.status.collectAsState()
-    var dataChannel by remember(camera) { mutableStateOf("") }
+    var rtcConfig by remember(camera) { mutableStateOf(JSONObject()) }
     var mode by
         remember(camera, status) {
             mutableStateOf(
@@ -70,15 +72,13 @@ fun CameraPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modif
                     val types =
                         capabilities.optJSONObject("result")?.optJSONArray("frontend_stream_types")
                     if (types?.toString()?.contains("web_rtc") == true) {
-                        dataChannel =
+                        rtcConfig =
                             model.ha
                                 .command(
                                     "camera/webrtc/get_client_config",
                                     JSONObject().put("entity_id", camera.entityId),
                                 )
-                                .optJSONObject("result")
-                                ?.optString("dataChannel")
-                                .orEmpty()
+                                .optJSONObject("result") ?: JSONObject()
                         "ha-rtc"
                     } else "hls"
                 } catch (e: CancellationException) {
@@ -91,11 +91,11 @@ fun CameraPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: Modif
     Box(modifier.background(Color.Black)) {
         when (mode) {
             "endpoint" ->
-                WebRtcPlayer(camera.webRtc, model, Modifier.fillMaxSize(), null, "") {
+                WebRtcPlayer(camera.webRtc, model, Modifier.fillMaxSize(), null, JSONObject()) {
                     mode = "hls"
                 }
             "ha-rtc" ->
-                WebRtcPlayer("", model, Modifier.fillMaxSize(), camera.entityId, dataChannel) {
+                WebRtcPlayer("", model, Modifier.fillMaxSize(), camera.entityId, rtcConfig) {
                     mode = "hls"
                 }
             "hls" -> HlsPlayer(camera, model, Modifier.fillMaxSize())
@@ -130,7 +130,8 @@ private fun HlsPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: 
             throw e
         } catch (_: Exception) {
             failed = true
-            error = "HLS"
+            error = "HLS_START"
+            android.util.Log.w("CameraPlayback", "HLS stream request failed")
         }
     }
     val stream = url
@@ -176,7 +177,11 @@ private fun HlsPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: 
                     .apply {
                         volume = 0f
                         trackSelectionParameters =
-                            trackSelectionParameters.buildUpon().setMaxVideoSize(1920, 1080).build()
+                            trackSelectionParameters
+                                .buildUpon()
+                                .setMaxVideoSize(1920, 1080)
+                                .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true)
+                                .build()
                         setMediaSource(
                             HlsMediaSource.Factory(OkHttpDataSource.Factory(client))
                                 .createMediaSource(MediaItem.fromUri(stream))
@@ -192,7 +197,8 @@ private fun HlsPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: 
                 override fun onPlayerError(exception: PlaybackException) {
                     failed = true
                     rendered = false
-                    error = exception.errorCodeName
+                    error = playbackErrorCode(exception)
+                    android.util.Log.w("CameraPlayback", "HLS: $error")
                 }
 
                 override fun onRenderedFirstFrame() {
@@ -232,13 +238,13 @@ private fun HlsPlayer(camera: CameraConfig, model: LauncherViewModel, modifier: 
     StartedEffect(player, rendered, failed, buffering) {
         if (!rendered || failed || buffering) {
             // A silent decoder/network stall must not leave a permanent black card.
-            delay(if (failed) 20_000 else 30_000)
+            delay(if (failed) 20_000 else 45_000)
             failed = true
             url = null
             retryIndex++
         }
     }
-    Box(modifier) {
+    Box(if (rendered) modifier.testTag("camera-live:${camera.entityId}") else modifier) {
         if (player != null)
             AndroidView(
                 factory = {
@@ -310,10 +316,7 @@ private fun SnapshotFallback(
             stringResource(
                 if (image != null) R.string.camera_snapshot
                 else if (failed) R.string.camera_retry else R.string.camera_connecting
-            ) +
-                if (failed && error.isNotBlank() && image == null)
-                    " · " + error.removePrefix("ERROR_CODE_")
-                else "",
+            ) + if (failed && error.isNotBlank()) " · " + error.removePrefix("ERROR_CODE_") else "",
             Modifier.align(Alignment.Center)
                 .background(Color.Black.copy(alpha = .7f))
                 .padding(6.dp),
@@ -323,11 +326,39 @@ private fun SnapshotFallback(
     }
 }
 
-private class RtcBridge(val offerHandler: (String) -> Unit, val failure: () -> Unit) {
-    @JavascriptInterface fun offer(sdp: String) = offerHandler(sdp)
-
-    @JavascriptInterface fun failed() = failure()
+/** Safe codes only: never include signed stream URLs, tokens or SDP in UI/logs. */
+private fun playbackErrorCode(error: PlaybackException): String {
+    var cause: Throwable? = error
+    repeat(8) {
+        if (cause is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+            return "HTTP_${(cause as androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException).responseCode}"
+        }
+        cause = cause?.cause
+    }
+    return error.errorCodeName.removePrefix("ERROR_CODE_")
 }
+
+private class RtcBridge(
+    val offerHandler: (Int, String) -> Unit,
+    val candidateHandler: (Int, String) -> Unit,
+    val playingHandler: (Int) -> Unit,
+    val failure: (Int, String) -> Unit,
+) {
+    @JavascriptInterface fun offer(run: Int, sdp: String) = offerHandler(run, sdp)
+
+    @JavascriptInterface fun candidate(run: Int, value: String) = candidateHandler(run, value)
+
+    @JavascriptInterface fun playing(run: Int) = playingHandler(run)
+
+    @JavascriptInterface fun failed(run: Int, code: String) = failure(run, code)
+}
+
+/** The page has no network assets; native code owns authenticated signaling. */
+internal fun rtcPage(template: String, config: JSONObject, trickle: Boolean, run: Int): String =
+    template
+        .replace("__CONFIG__", JSONObject.quote(config.toString()))
+        .replace("__TRICKLE__", trickle.toString())
+        .replace("__RUN__", run.toString())
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -336,7 +367,7 @@ private fun WebRtcPlayer(
     model: LauncherViewModel,
     modifier: Modifier,
     entityId: String?,
-    dataChannel: String,
+    config: JSONObject,
     onFallback: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -344,12 +375,29 @@ private fun WebRtcPlayer(
     val scope = rememberCoroutineScope()
     val main = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
     val currentFallback by rememberUpdatedState(onFallback)
+    val generation = remember { java.util.concurrent.atomic.AtomicInteger(0) }
+    val localCandidates = remember {
+        java.util.concurrent.atomic.AtomicReference<
+            kotlinx.coroutines.channels.Channel<JSONObject>?
+        >(
+            null
+        )
+    }
     val rtcSession = remember {
         java.util.concurrent.atomic.AtomicReference<
             dev.hatv.launcher.ha.HomeAssistantClient.RtcSession?
         >(
             null
         )
+    }
+    var rendered by remember { mutableStateOf(false) }
+    fun fallback(run: Int, code: String) {
+        if (generation.get() == run && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            // Page reports fixed diagnostic categories, never external text.
+            val safe = code.takeIf { it.matches(Regex("[A-Z_]{1,32}")) } ?: "FAILED"
+            android.util.Log.w("CameraPlayback", "WebRTC fallback: $safe")
+            currentFallback()
+        }
     }
     val web =
         remember(endpoint, entityId) {
@@ -361,28 +409,59 @@ private fun WebRtcPlayer(
                 settings.mediaPlaybackRequiresUserGesture = false
                 settings.allowFileAccess = false
                 settings.allowContentAccess = false
-                settings.blockNetworkLoads =
-                    true // All signaling goes through native OkHttp; page has no remote assets.
+                settings.blockNetworkLoads = true
                 webViewClient =
                     object : WebViewClient() {
                         override fun shouldOverrideUrlLoading(
                             view: WebView?,
                             request: android.webkit.WebResourceRequest?,
                         ) = true
+
+                        override fun onRenderProcessGone(
+                            view: WebView?,
+                            detail: android.webkit.RenderProcessGoneDetail?,
+                        ): Boolean {
+                            val run = generation.get()
+                            main.post { fallback(run, "RENDERER") }
+                            return true // Disposal removes and destroys the affected WebView.
+                        }
                     }
                 addJavascriptInterface(
                     RtcBridge(
-                        { sdp ->
+                        { run, sdp ->
                             scope.launch {
-                                if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+                                if (
+                                    generation.get() != run ||
+                                        !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                                )
                                     return@launch
                                 try {
                                     if (entityId != null) {
+                                        val candidates = localCandidates.get() ?: return@launch
                                         val session = model.ha.cameraWebRtc(entityId, sdp)
                                         rtcSession.set(session)
+                                        val sessionId = CompletableDeferred<String>()
+                                        val sender = launch {
+                                            try {
+                                                val id = sessionId.await()
+                                                for (candidate in candidates) session.addCandidate(
+                                                    id,
+                                                    candidate,
+                                                )
+                                            } catch (e: CancellationException) {
+                                                throw e
+                                            } catch (_: Exception) {
+                                                fallback(run, "LOCAL_ICE")
+                                            }
+                                        }
                                         try {
                                             for (event in session.events) {
+                                                if (generation.get() != run) break
                                                 when (event.optString("type")) {
+                                                    "session" ->
+                                                        sessionId.complete(
+                                                            event.getString("session_id")
+                                                        )
                                                     "answer" ->
                                                         evaluateJavascript(
                                                             "window.answer(${JSONObject.quote(event.getString("answer"))})",
@@ -394,31 +473,29 @@ private fun WebRtcPlayer(
                                                             null,
                                                         )
                                                     "error" -> {
-                                                        currentFallback()
+                                                        fallback(run, "SIGNALING")
                                                         break
                                                     }
                                                 }
                                             }
                                         } finally {
+                                            sender.cancel()
                                             session.close()
                                             rtcSession.compareAndSet(session, null)
                                         }
                                         return@launch
                                     }
+                                    // A separate go2rtc endpoint never receives the HA token.
                                     val answer =
                                         withContext(Dispatchers.IO) {
                                             val url =
-                                                endpoint
-                                                    .trim()
-                                                    .toHttpUrl()
-                                                    .also {
-                                                        require(
-                                                            it.username.isBlank() &&
-                                                                it.password.isBlank() &&
-                                                                it.fragment == null
-                                                        )
-                                                    }
-                                                    .toString()
+                                                endpoint.trim().toHttpUrl().also {
+                                                    require(
+                                                        it.username.isBlank() &&
+                                                            it.password.isBlank() &&
+                                                            it.fragment == null
+                                                    )
+                                                }
                                             val request =
                                                 Request.Builder()
                                                     .url(url)
@@ -428,8 +505,6 @@ private fun WebRtcPlayer(
                                                         )
                                                     )
                                                     .build()
-                                            // go2rtc is a distinct endpoint: never send the HA
-                                            // access token.
                                             model.ha.http.newCall(request).execute().use { response
                                                 ->
                                                 check(response.isSuccessful)
@@ -439,44 +514,64 @@ private fun WebRtcPlayer(
                                                 text
                                             }
                                         }
-                                    evaluateJavascript(
-                                        "window.answer(${JSONObject.quote(answer)})",
-                                        null,
-                                    )
+                                    if (generation.get() == run)
+                                        evaluateJavascript(
+                                            "window.answer(${JSONObject.quote(answer)})",
+                                            null,
+                                        )
                                 } catch (e: CancellationException) {
                                     throw e
                                 } catch (_: Exception) {
-                                    currentFallback()
+                                    fallback(run, "SIGNALING")
                                 }
                             }
                         },
-                        { main.post { currentFallback() } },
+                        { run, value ->
+                            if (generation.get() == run)
+                                runCatching { JSONObject(value) }
+                                    .getOrNull()
+                                    ?.let {
+                                        if (localCandidates.get()?.trySend(it)?.isFailure == true)
+                                            main.post { fallback(run, "ICE_QUEUE") }
+                                    }
+                        },
+                        { run -> main.post { if (generation.get() == run) rendered = true } },
+                        { run, code -> main.post { fallback(run, code) } },
                     ),
                     "NativeRtc",
                 )
             }
         }
-    // Covers unsupported WebView WebRTC, ICE failure, incompatible codecs and silent signaling
-    // failures.
-    StartedEffect(endpoint, entityId) {
-        delay(12_000)
-        web.evaluateJavascript("window.checkConnection()", null)
+    val currentRendered by rememberUpdatedState(rendered)
+    StartedEffect(web) {
+        // Native guard also covers a page/renderer that never executes its JS watchdog.
+        delay(35_000)
+        if (!currentRendered) fallback(generation.get(), "NO_VIDEO")
     }
     DisposableEffect(web, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START -> {
+                    val run = generation.incrementAndGet()
+                    rendered = false
+                    localCandidates.getAndSet(kotlinx.coroutines.channels.Channel(64))?.cancel()
                     web.onResume()
+                    val template =
+                        context.assets.open("camera/rtc.html").bufferedReader().use {
+                            it.readText()
+                        }
                     web.loadDataWithBaseURL(
                         "https://localhost/",
-                        RTC_HTML.replace("__CHANNEL__", JSONObject.quote(dataChannel)),
+                        rtcPage(template, config, entityId != null, run),
                         "text/html",
                         "UTF-8",
                         null,
                     )
                 }
                 Lifecycle.Event.ON_STOP -> {
+                    generation.incrementAndGet()
                     scope.coroutineContext.cancelChildren()
+                    localCandidates.getAndSet(null)?.cancel()
                     rtcSession.getAndSet(null)?.close()
                     web.evaluateJavascript("window.stop()", null)
                     web.onPause()
@@ -486,7 +581,9 @@ private fun WebRtcPlayer(
         }
         lifecycle.addObserver(observer)
         onDispose {
+            generation.incrementAndGet()
             lifecycle.removeObserver(observer)
+            localCandidates.getAndSet(null)?.cancel()
             rtcSession.getAndSet(null)?.close()
             web.evaluateJavascript("window.stop()", null)
             web.removeJavascriptInterface("NativeRtc")
@@ -495,13 +592,14 @@ private fun WebRtcPlayer(
             web.destroy()
         }
     }
-    AndroidView(factory = { web }, modifier = modifier)
+    Box(if (rendered) modifier.testTag("camera-live:$entityId") else modifier) {
+        AndroidView(factory = { web }, modifier = Modifier.fillMaxSize())
+        if (!rendered)
+            Label(
+                stringResource(R.string.camera_connecting),
+                Modifier.align(Alignment.Center),
+                size = 11,
+                color = Muted,
+            )
+    }
 }
-
-private const val RTC_HTML =
-    """
-<!doctype html><html><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body,video{margin:0;width:100%;height:100%;background:#090f19;overflow:hidden}video{object-fit:cover}</style><video id="v" autoplay muted playsinline></video><script>
-let pc;let candidates=[];window.candidate=async(c)=>{try{if(pc&&pc.remoteDescription)await pc.addIceCandidate(c);else candidates.push(c)}catch(e){NativeRtc.failed()}};window.stop=()=>{if(pc)pc.close();v.srcObject=null};window.checkConnection=()=>{if(!pc||pc.connectionState!=='connected')NativeRtc.failed()};window.answer=async(sdp)=>{try{await pc.setRemoteDescription({type:'answer',sdp});for(const c of candidates)await pc.addIceCandidate(c);candidates=[]}catch(e){NativeRtc.failed()}};
-(async()=>{try{pc=new RTCPeerConnection({iceServers:[]});const channel=__CHANNEL__;if(channel)pc.createDataChannel(channel);pc.addTransceiver('video',{direction:'recvonly'});pc.ontrack=e=>{v.srcObject=e.streams[0]||new MediaStream([e.track])};pc.onconnectionstatechange=()=>{if(['failed','disconnected'].includes(pc.connectionState))NativeRtc.failed()};await pc.setLocalDescription(await pc.createOffer());await new Promise(resolve=>{if(pc.iceGatheringState==='complete')return resolve();pc.onicegatheringstatechange=()=>{if(pc.iceGatheringState==='complete')resolve()};setTimeout(resolve,2500)});NativeRtc.offer(pc.localDescription.sdp)}catch(e){NativeRtc.failed()}})();
-</script></html>
-"""

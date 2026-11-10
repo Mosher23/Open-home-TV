@@ -358,8 +358,13 @@ class HomeAssistantClient(
         }
     }
 
-    class RtcSession(val events: Channel<JSONObject>, private val stop: () -> Unit) :
-        java.io.Closeable {
+    class RtcSession(
+        val events: Channel<JSONObject>,
+        private val candidate: suspend (String, JSONObject) -> Unit,
+        private val stop: () -> Unit,
+    ) : java.io.Closeable {
+        suspend fun addCandidate(sessionId: String, value: JSONObject) = candidate(sessionId, value)
+
         override fun close() = stop()
     }
 
@@ -402,7 +407,21 @@ class HomeAssistantClient(
                     throw IOException("Home Assistant command timed out")
                 }
             check(result.optBoolean("success")) { "Camera WebRTC signaling unavailable" }
-            return RtcSession(channel, ::stop)
+            return RtcSession(
+                channel,
+                { sessionId, candidate ->
+                    check(socket === ws && rtcEvents[id] === channel) { "Camera session closed" }
+                    command(
+                        "camera/webrtc/candidate",
+                        JSONObject()
+                            .put("entity_id", entityId)
+                            .put("session_id", sessionId)
+                            .put("candidate", candidate),
+                    )
+                    Unit
+                },
+                ::stop,
+            )
         } catch (e: Exception) {
             stop()
             throw e

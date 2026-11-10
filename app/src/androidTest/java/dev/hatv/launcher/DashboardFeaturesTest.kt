@@ -34,6 +34,7 @@ class DashboardFeaturesTest {
 
     private fun select(node: SemanticsNodeInteraction) {
         node.performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+        ui.waitForIdle()
         key(KeyEvent.KEYCODE_DPAD_CENTER)
     }
 
@@ -57,6 +58,8 @@ class DashboardFeaturesTest {
             ui.onNodeWithTag("settings-list")
                 .performScrollToNode(hasText("Home cameras and streams"))
             select(ui.onNodeWithText("Home cameras and streams"))
+            ui.onNodeWithTag("settings-list")
+                .performScrollToNode(hasTestTag("home-camera-count-up"))
             select(ui.onNodeWithTag("home-camera-count-up"))
             key(KeyEvent.KEYCODE_DPAD_CENTER)
             ui.onNodeWithText("Home camera feeds: 4").assertIsDisplayed()
