@@ -1,5 +1,12 @@
 # Validation
 
+## Version 0.4.2 — save one Home camera from TV settings
+
+- Build, Android lint, 22 JVM tests and 16 native Android TV tests passed on the isolated API 34 emulator. No installation or configuration change was made on the physical TV.
+- The missing Save action on the TV camera subsection left count/order changes as a draft; the previous workflow required returning to main Settings and saving there. The camera subsection now provides the same validated Save action at both ends of the list, a Saved/Unsaved indicator and localized instructions.
+- The new remote regression test changes two feeds to one, presses the subsection’s top Save with D-pad Select, verifies persisted preferences, clears the Activity’s ViewModel store and recreates the Activity. The fresh ViewModel loads one feed from saved settings and Home renders only the first camera while retaining all camera selections. Reopening settings still shows one. The footer Save also persists zero. This is a fresh-model/Activity reload test, not a physical TV process-kill test.
+- Existing camera-count/order, phone setup (including one-feed apply), keyboard, D-pad, live HLS/WebRTC, lifecycle and secure-storage tests remain passing. No permissions or dependencies changed. The APK uses the same update-compatible signing certificate.
+
 ## Version 0.4.1 — video signaling and playback recovery
 
 - Build, 22 JVM tests, 15 Android tests and Android lint passed on the isolated API 34 Android TV emulator. Physical TV app data and installed APK were not changed.

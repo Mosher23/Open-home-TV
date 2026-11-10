@@ -44,7 +44,7 @@
 <string name="done">Done</string>
 <string name="cancel">Cancel</string>
 <string name="home_camera_count">Home camera feeds: %1$d</string>
-<string name="home_camera_hint">Show 0–4 feeds. The first cameras in this list appear on Home, left to right and top to bottom. Zero hides the Home camera panel. Use lower-resolution streams for three or four feeds.</string>
+<string name="home_camera_hint">Show 0–4 feeds. The first cameras in this list appear on Home, left to right and top to bottom. Zero hides the Home camera panel. Use lower-resolution streams for three or four feeds. Press Save camera view before leaving.</string>
 <string name="move_up">↑ Move up</string>
 <string name="move_down">↓ Move down</string>
 <string name="energy_consumption">Energy consumption</string>
@@ -60,4 +60,7 @@
 <string name="energy_sensor">Energy sensor</string>
 <string name="automatic">Automatic</string>
 <string name="energy_mapping_hint">Uses HA energy dashboard meters automatically. Optional overrides must be cumulative Wh/kWh/MWh sensors with recorder statistics.</string>
+<string name="save_camera_view">Save camera view</string>
+<string name="camera_view_saved">Camera view saved</string>
+<string name="camera_view_unsaved">Unsaved changes</string>
 </resources>

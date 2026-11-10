@@ -2,7 +2,7 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.4.1 — camera negotiation and live playback recovery fixes.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.4.2 — save the Home camera view directly from TV camera settings.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
@@ -69,7 +69,8 @@ The recommended route is [phone setup](docs/PHONE-SETUP.md). Manual entry with t
 3. Enter the local HA server URL and token in launcher Settings. Test the connection. Disable Demo mode and Save to connect.
 4. Reopen Settings → Choose entities. Pick weather, power sensors, controls and cameras. Camera selection is independent of controls.
 5. Back to the main Settings screen and **Save**. Selection changes remain a draft until saved. Widget selection moves that widget to the first slot within its row.
-6. Leave both camera endpoints blank for automatic HA-native WebRTC with HLS fallback. Optionally override with a go2rtc HTTP SDP endpoint such as `http://go2rtc.local:1984/api/webrtc?src=front_door`. Leave HLS blank to request a stream from HA. Two preview feeds are enabled by default. Choose 0–4 and their sequence in Home cameras and streams; prefer low-resolution feeds for three or four.
+6. In **Home cameras and streams**, set the feed count (choose **1** for a single camera), put the wanted camera first and press **Save camera view** on that screen. The Saved/Unsaved indicator confirms whether the draft is stored. No return to the main Settings Save button is required.
+7. Leave both camera endpoints blank for automatic HA-native WebRTC with HLS fallback. Optionally override with a go2rtc HTTP SDP endpoint such as `http://go2rtc.local:1984/api/webrtc?src=front_door`. Leave HLS blank to request a stream from HA. Two preview feeds are enabled by default. Choose 0–4 and their sequence in Home cameras and streams; prefer low-resolution feeds for three or four.
 
 The token is encrypted with AES/GCM using Android Keystore and excluded from backups. Standard TLS validation is enforced. HTTP is allowed for local compatibility and sends the token without transport encryption; use HTTPS when available. Changing the server URL requires re-entering a saved token. Tokens are never sent to a different camera origin. Camera URLs must not contain embedded username/password credentials. Settings are private app data.
 

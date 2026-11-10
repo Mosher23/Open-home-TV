@@ -108,6 +108,67 @@ class DashboardFeaturesTest {
     }
 
     @Test
+    fun oneHomeCameraSavesDirectlyFromCameraSettingsAndSurvivesFreshViewModel() {
+        lateinit var original: Config
+        lateinit var firstModel: LauncherViewModel
+        ui.activityRule.scenario.onActivity {
+            firstModel = ViewModelProvider(it)[LauncherViewModel::class.java]
+            original = firstModel.config.value
+            firstModel.update(
+                original.copy(demo = true, cameras = Demo.cameras, homeCameraCount = 2)
+            )
+        }
+        fun cameraSettings() {
+            home()
+            repeat(7) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
+            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            ui.onNodeWithTag("settings-list")
+                .performScrollToNode(hasText("Home cameras and streams"))
+            select(ui.onNodeWithText("Home cameras and streams"))
+        }
+        try {
+            cameraSettings()
+            ui.onNodeWithTag("settings-list")
+                .performScrollToNode(hasTestTag("home-camera-count-down"))
+            select(ui.onNodeWithTag("home-camera-count-down"))
+            ui.onNodeWithText("Home camera feeds: 1").assertIsDisplayed()
+            ui.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("camera-save-top"))
+            ui.onNodeWithText("Unsaved changes").assertIsDisplayed()
+            select(ui.onNodeWithTag("camera-save-top"))
+            ui.waitUntil(5000) { firstModel.config.value.homeCameraCount == 1 }
+            ui.onNodeWithText("Camera view saved").assertIsDisplayed()
+            ui.activityRule.scenario.onActivity {
+                val persisted = SettingsStore(it).load()
+                assertEquals(1, persisted.homeCameraCount)
+                assertEquals(Demo.cameras, persisted.cameras)
+                // A new ViewModel must read disk, rather than retaining the UI draft.
+                it.viewModelStore.clear()
+            }
+            ui.activityRule.scenario.recreate()
+            ui.activityRule.scenario.onActivity {
+                val fresh = ViewModelProvider(it)[LauncherViewModel::class.java]
+                assertNotSame(firstModel, fresh)
+                assertEquals(1, fresh.config.value.homeCameraCount)
+            }
+            home()
+            ui.onNodeWithTag("home-camera:camera.harbor").assertIsDisplayed()
+            ui.onNodeWithTag("home-camera:camera.rhine").assertDoesNotExist()
+            cameraSettings()
+            ui.onNodeWithTag("settings-list").performScrollToNode(hasText("Home camera feeds: 1"))
+            ui.onNodeWithText("Home camera feeds: 1").assertIsDisplayed()
+            // The footer saves the same draft, without returning to main Settings.
+            select(ui.onNodeWithTag("home-camera-count-down"))
+            ui.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("camera-save-bottom"))
+            select(ui.onNodeWithTag("camera-save-bottom"))
+            ui.waitUntil(5000) { SettingsStore(ui.activity).load().homeCameraCount == 0 }
+        } finally {
+            ui.activityRule.scenario.onActivity {
+                ViewModelProvider(it)[LauncherViewModel::class.java].update(original)
+            }
+        }
+    }
+
+    @Test
     fun selectTogglesPowerAndTodayAndColorfulScenesStillActivate() {
         home()
         ui.onNodeWithText("Home power").assertIsDisplayed()

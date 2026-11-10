@@ -44,7 +44,7 @@
 <string name="done">Fertig</string>
 <string name="cancel">Abbrechen</string>
 <string name="home_camera_count">Kamera-Feeds auf Home: %1$d</string>
-<string name="home_camera_hint">0–4 Feeds anzeigen. Die ersten Kameras erscheinen auf Home von links nach rechts und oben nach unten. Null blendet das Kamera-Panel aus. Für drei oder vier Feeds niedrige Auflösung verwenden.</string>
+<string name="home_camera_hint">0–4 Feeds anzeigen. Die ersten Kameras erscheinen auf Home von links nach rechts und oben nach unten. Null blendet das Kamera-Panel aus. Für drei oder vier Feeds niedrige Auflösung verwenden. Vor dem Verlassen Kameraansicht speichern wählen.</string>
 <string name="move_up">↑ Nach oben</string>
 <string name="move_down">↓ Nach unten</string>
 <string name="energy_consumption">Energieverbrauch</string>
@@ -60,4 +60,7 @@
 <string name="energy_sensor">Energiesensor</string>
 <string name="automatic">Automatisch</string>
 <string name="energy_mapping_hint">Nutzt automatisch die Zähler des HA-Energie-Dashboards. Optional kumulative Wh/kWh/MWh-Sensoren mit Recorder-Statistik zuordnen.</string>
+<string name="save_camera_view">Kameraansicht speichern</string>
+<string name="camera_view_saved">Kameraansicht gespeichert</string>
+<string name="camera_view_unsaved">Ungespeicherte Änderungen</string>
 </resources>

@@ -26,6 +26,10 @@ fun SettingsPage(model: LauncherViewModel) {
     var c by remember(saved) { mutableStateOf(saved) }
     // Token is intentionally not saveable; never enters a saved-state Bundle or text log.
     var token by remember { mutableStateOf("") }
+    fun saveDraft() {
+        model.save(c, token)
+        token = ""
+    }
     var section by remember { mutableStateOf("main") }
     val listState = rememberLazyListState()
     LaunchedEffect(section) { listState.scrollToItem(0) }
@@ -109,13 +113,7 @@ fun SettingsPage(model: LauncherViewModel) {
                                 stringResource(R.string.test_connection),
                                 { model.test(c.server, token) },
                             )
-                            Action(
-                                stringResource(R.string.save),
-                                {
-                                    model.save(c, token)
-                                    token = ""
-                                },
-                            )
+                            Action(stringResource(R.string.save), { saveDraft() })
                             Action(
                                 stringResource(R.string.remove_token),
                                 {
@@ -196,10 +194,7 @@ fun SettingsPage(model: LauncherViewModel) {
                     item {
                         Action(
                             stringResource(R.string.save),
-                            {
-                                model.save(c, token)
-                                token = ""
-                            },
+                            { saveDraft() },
                             Modifier.fillMaxWidth(),
                         )
                     }
@@ -489,6 +484,28 @@ fun SettingsPage(model: LauncherViewModel) {
                 }
                 section == "cameras" -> {
                     item {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Label(
+                                stringResource(
+                                    if (c == saved) R.string.camera_view_saved
+                                    else R.string.camera_view_unsaved
+                                ),
+                                size = 12,
+                                color = Muted,
+                            )
+                            Action(
+                                stringResource(R.string.save_camera_view),
+                                { saveDraft() },
+                                Modifier.testTag("camera-save-top"),
+                                selected = true,
+                            )
+                        }
+                    }
+                    item {
                         Label(
                             stringResource(R.string.home_camera_count, c.homeCameraCount),
                             size = 18,
@@ -597,6 +614,14 @@ fun SettingsPage(model: LauncherViewModel) {
                         }
                     }
                     item { Action(stringResource(R.string.entities), { section = "entities" }) }
+                    item {
+                        Action(
+                            stringResource(R.string.save_camera_view),
+                            { saveDraft() },
+                            Modifier.fillMaxWidth().testTag("camera-save-bottom"),
+                            selected = true,
+                        )
+                    }
                 }
             }
         }
