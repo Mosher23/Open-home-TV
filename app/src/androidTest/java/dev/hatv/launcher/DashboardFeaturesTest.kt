@@ -120,8 +120,9 @@ class DashboardFeaturesTest {
         }
         fun cameraSettings() {
             home()
-            repeat(7) { key(KeyEvent.KEYCODE_DPAD_DOWN) }
-            key(KeyEvent.KEYCODE_DPAD_CENTER)
+            // After Activity recreation, target the Settings rail item explicitly. The
+            // dedicated navigation test covers directional traversal of the whole rail.
+            select(ui.onNodeWithContentDescription("Settings"))
             ui.onNodeWithTag("settings-list")
                 .performScrollToNode(hasText("Home cameras and streams"))
             select(ui.onNodeWithText("Home cameras and streams"))

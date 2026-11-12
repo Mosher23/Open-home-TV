@@ -7,7 +7,7 @@
 const run = __RUN__, trickle = __TRICKLE__, config = JSON.parse(__CONFIG__);
 const video = document.getElementById("v");
 let pc, stopped = false, remoteCandidates = [], watchdog, lastProgress = Date.now();
-let lastFrame = -1, hasFrames = false, wasPlaying = false;
+let lastFrame = 0, hasFrames = false;
 function fail(code) {
   if (stopped) return;
   window.stop();
@@ -44,12 +44,17 @@ window.answer = async sdp => {
 // A connected ICE transport is not proof of decoded video. Also recover stalled media.
 watchdog = setInterval(() => {
   const now = Date.now();
-  const frame = video.getVideoPlaybackQuality?.().totalVideoFrames ?? video.webkitDecodedFrameCount ?? video.currentTime;
-  if (video.readyState >= 2 && video.videoWidth > 0 && frame !== lastFrame) {
+  const quality = video.getVideoPlaybackQuality?.();
+  // totalVideoFrames includes frames dropped BEFORE decoding. A NullVideoDecoder can
+  // increase it forever without displaying anything. Count only non-dropped frames.
+  const frame = quality ? Math.max(0, quality.totalVideoFrames - quality.droppedVideoFrames)
+    : (video.webkitDecodedFrameCount == null ? 0
+      : Math.max(0, video.webkitDecodedFrameCount - (video.webkitDroppedFrameCount || 0)));
+  if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0 && frame > lastFrame) {
     lastFrame = frame;
     lastProgress = now;
     hasFrames = true;
-    if (!wasPlaying) { wasPlaying = true; NativeRtc.playing(run); }
+    NativeRtc.playing(run); // Heartbeat: native code also detects a stalled JS renderer.
   }
   if (now - lastProgress > 25000) fail(hasFrames ? "VIDEO_STALLED" : "NO_VIDEO");
 }, 1000);

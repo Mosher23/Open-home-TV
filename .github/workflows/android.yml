@@ -21,6 +21,7 @@ jobs:
           packages: 'platform-tools platforms;android-35 build-tools;34.0.0'
       - name: Verify bundled phone setup page
         run: |
+          node --test scripts/test-camera-watchdog.mjs
           npm --prefix web/phone ci --ignore-scripts
           npm --prefix web/phone test
           npm --prefix web/phone run build

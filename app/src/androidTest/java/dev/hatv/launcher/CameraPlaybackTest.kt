@@ -142,6 +142,65 @@ class CameraPlaybackTest {
     }
 
     @Test
+    fun productionWebRtcPageRejectsOnlyDroppedFrames() {
+        val finished = CountDownLatch(1)
+        val failure = AtomicReference("")
+        lateinit var web: WebView
+        ui.activityRule.scenario.onActivity { activity ->
+            val template =
+                activity.assets.open("camera/rtc.html").bufferedReader().use { it.readText() }
+            web =
+                WebView(activity).apply {
+                    settings.javaScriptEnabled = true
+                    settings.mediaPlaybackRequiresUserGesture = false
+                    settings.blockNetworkLoads = true
+                    addJavascriptInterface(LoopbackBridge({}, finished, failure), "NativeRtc")
+                }
+            activity.setContent {
+                androidx.compose.ui.viewinterop.AndroidView(
+                    factory = { web },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            // Reproduce a WebView NullVideoDecoder: metadata exists and total frames rise,
+            // but every frame is dropped before decoding. This must not trigger playing().
+            val droppedFrames =
+                """
+                <script>
+                Object.defineProperties(video, {
+                  readyState:{get:()=>4},videoWidth:{get:()=>640},videoHeight:{get:()=>360}
+                });
+                let drops=0;
+                video.getVideoPlaybackQuality=()=>({totalVideoFrames:++drops,droppedVideoFrames:drops});
+                setTimeout(()=>{const realNow=Date.now;Date.now=()=>realNow()+30000},1500);
+                </script>
+            """
+                    .trimIndent()
+            web.loadDataWithBaseURL(
+                "https://localhost/",
+                rtcPage(template, JSONObject(), true, 1) + droppedFrames,
+                "text/html",
+                "UTF-8",
+                null,
+            )
+        }
+        try {
+            assertTrue("Watchdog did not request fallback", finished.await(10, TimeUnit.SECONDS))
+            assertEquals(
+                "Dropped frames were incorrectly reported as playing",
+                "NO_VIDEO",
+                failure.get(),
+            )
+        } finally {
+            ui.activityRule.scenario.onActivity {
+                web.evaluateJavascript("window.stop()", null)
+                web.removeJavascriptInterface("NativeRtc")
+                web.destroy()
+            }
+        }
+    }
+
+    @Test
     fun productionWebRtcPageDecodesVideoWithTrickleIce() {
         val frames = CountDownLatch(1)
         val failure = AtomicReference("")

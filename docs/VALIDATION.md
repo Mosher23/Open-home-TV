@@ -1,5 +1,13 @@
 # Validation
 
+## Version 0.5.3 — dropped-frame and stall recovery
+
+- Read-only TV logs showed a WebView NullVideoDecoder failure. A source-level check confirmed totalVideoFrames includes dropped frames. It could therefore advance indefinitely on a blank card without triggering the previous watchdog. The corrected production page counts non-dropped frames with nonzero dimensions, sends progress heartbeats and falls back on no-video or stalled video.
+- A native watchdog now clears stale WebRTC playback status after a heartbeat gap and triggers fallback even after earlier successful playback if the JS renderer stops running. HLS checks video metadata progress after its first rendered frame; stalled video loses Live and is stopped/retried, with the labelled snapshot fallback.
+- New Node regressions run the production script for all-dropped frames, later dropped-frame stalls and missing dimensions. A new native WebView regression reproduces metadata plus an increasing all-dropped counter and requires NO_VIDEO, never playing. Existing real HLS/WebRTC decoding, grid navigation, off-screen disposal and lifecycle tests remain required.
+- Final verification: debug APK build and lint pass, all 22 JVM tests and 19 native Android TV tests pass, and the three new Node watchdog tests pass. The Settings persistence test now targets the Settings rail item explicitly after Activity recreation; separate tests retain full directional rail coverage. The update signing certificate is unchanged.
+- Direct native RTSP was evaluated and documented; it is not claimed implemented or tested with a physical camera. No camera encoding, camera credentials, HA configuration or TV configuration was changed. Private logs and integration diagnostics are excluded from GitHub.
+
 ## Version 0.5.2 — live camera grid
 
 - Cameras now renders two feeds per row and starts visible streams immediately, independently of the Home preview setting. Video fills each rounded card, with a name overlay and a Live badge driven by decoded/ready playback.

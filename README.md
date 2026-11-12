@@ -2,9 +2,9 @@
 
 A lightweight, ad-free Android TV HOME launcher with local Home Assistant integration. Built with Kotlin and Jetpack Compose for TV. No mandatory Google Play Services, accounts, ads, analytics, subscriptions or cloud relay.
 
-**Status: 0.5.2 — live camera grid: two feeds per row, automatic playback and remote fullscreen.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
+**Status: 0.5.3 — camera playback checks: dropped frames no longer count as live video; stalled players retry.** Starts in an interactive demo mode without credentials. Real Home Assistant and camera paths are implemented; compatibility with your HA installation, camera codecs and Sony firmware needs device validation. This is an independent community project, not an official Home Assistant or Sony product.
 
-[Download v0.5.2 APK](https://github.com/Mosher23/Open-home-TV/releases/download/v0.5.2/Open-home-TV-0.5.2.apk) · [Release notes](https://github.com/Mosher23/Open-home-TV/releases/tag/v0.5.2)
+[Download v0.5.3 APK](https://github.com/Mosher23/Open-home-TV/releases/download/v0.5.3/Open-home-TV-0.5.3.apk) · [Release notes](https://github.com/Mosher23/Open-home-TV/releases/tag/v0.5.3)
 
 ![English demo dashboard](docs/images/dashboard-en.png)
 
@@ -86,6 +86,8 @@ Assign devices to areas in HA for room grouping. Entity area overrides device ar
 The load card uses your HA Energy dashboard automatically. To override it, map **Whole home** to the actual whole-home power meter. Leave unused solar/grid/battery/EV/heat-pump roles empty. Select **Measured appliances** separately; avoid aggregate meters and duplicates that would count the same consumption twice. Appliance readings are independently measured and may not sum to the whole-home reading. For Today, choose optional cumulative Wh/kWh/MWh meter overrides under Energy meters for Today; recorder statistics are required and may lag by about five minutes. Missing statistics stay missing. No individual sensor IDs from a private installation are built into the app.
 
 ## Camera and hardware limits
+
+See [camera streaming paths and direct RTSP evaluation](docs/CAMERA-STREAMING.md). Native RTSP is a proposed extension; current direct endpoint overrides support WebRTC/go2rtc and HTTP HLS. For Reolink grid previews, try the available Fluent stream entities before Clear.
 
 - WebRTC uses Android System WebView and HA camera capabilities/client configuration, offer subscription, answer and ICE candidate events. Older HA versions without these commands fall back to HLS. An explicit go2rtc HTTP SDP endpoint remains supported.
 - WebRTC uses HA’s ICE configuration and sends local candidates throughout negotiation. Any STUN/TURN servers come from your HA configuration; none are hardcoded by the launcher. Local host candidates work without an external service. WebView support, codecs, LAN routing and TV decoder limits still determine compatibility. HLS is the fallback.

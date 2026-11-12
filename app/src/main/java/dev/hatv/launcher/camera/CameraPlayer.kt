@@ -222,6 +222,8 @@ private fun HlsPlayer(
                     }
             }
         }
+    val lastVideoFrame = remember(player) { java.util.concurrent.atomic.AtomicLong(0) }
+    var firstFrameRendered by remember(player) { mutableStateOf(false) }
     DisposableEffect(player, lifecycle) {
         val listener =
             object : Player.Listener {
@@ -233,6 +235,8 @@ private fun HlsPlayer(
                 }
 
                 override fun onRenderedFirstFrame() {
+                    firstFrameRendered = true
+                    lastVideoFrame.set(android.os.SystemClock.elapsedRealtime())
                     rendered = true
                     failed = false
                 }
@@ -246,6 +250,9 @@ private fun HlsPlayer(
                 }
             }
         player?.addListener(listener)
+        player?.setVideoFrameMetadataListener { _, _, _, _ ->
+            lastVideoFrame.set(android.os.SystemClock.elapsedRealtime())
+        }
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START -> {
@@ -254,6 +261,8 @@ private fun HlsPlayer(
                 }
                 Lifecycle.Event.ON_STOP -> {
                     player?.stop()
+                    firstFrameRendered = false
+                    lastVideoFrame.set(0)
                     rendered = false
                 }
                 else -> Unit
@@ -265,6 +274,24 @@ private fun HlsPlayer(
             player?.removeListener(listener)
             player?.release()
         }
+    }
+    StartedEffect(player) {
+        if (player != null)
+            while (isActive) {
+                delay(2000)
+                val last = lastVideoFrame.get()
+                if (last == 0L) continue
+                val age = android.os.SystemClock.elapsedRealtime() - last
+                if (age > 5000) rendered = false
+                else if (firstFrameRendered && player.isPlaying && !failed) rendered = true
+                if (age > 15_000 && !failed) {
+                    rendered = false
+                    failed = true
+                    error = "VIDEO_STALLED"
+                    player.stop()
+                    android.util.Log.w("CameraPlayback", "HLS: VIDEO_STALLED")
+                }
+            }
     }
     StartedEffect(player, rendered, failed, buffering) {
         if (!rendered || failed || buffering) {
@@ -423,6 +450,7 @@ private fun WebRtcPlayer(
         )
     }
     var rendered by remember { mutableStateOf(false) }
+    val lastFrame = remember { java.util.concurrent.atomic.AtomicLong(0) }
     val notifyPlayback by rememberUpdatedState(onPlaybackChanged)
     LaunchedEffect(rendered) { notifyPlayback(rendered) }
     fun fallback(run: Int, code: String) {
@@ -569,18 +597,33 @@ private fun WebRtcPlayer(
                                             main.post { fallback(run, "ICE_QUEUE") }
                                     }
                         },
-                        { run -> main.post { if (generation.get() == run) rendered = true } },
+                        { run ->
+                            main.post {
+                                if (generation.get() == run) {
+                                    lastFrame.set(android.os.SystemClock.elapsedRealtime())
+                                    rendered = true
+                                }
+                            }
+                        },
                         { run, code -> main.post { fallback(run, code) } },
                     ),
                     "NativeRtc",
                 )
             }
         }
-    val currentRendered by rememberUpdatedState(rendered)
     StartedEffect(web) {
         // Native guard also covers a page/renderer that never executes its JS watchdog.
-        delay(35_000)
-        if (!currentRendered) fallback(generation.get(), "NO_VIDEO")
+        val started = android.os.SystemClock.elapsedRealtime()
+        while (isActive) {
+            delay(2000)
+            val now = android.os.SystemClock.elapsedRealtime()
+            val last = lastFrame.get()
+            if (last > 0 && now - last > 5000) rendered = false
+            if (now - (if (last > 0) last else started) > 30_000) {
+                fallback(generation.get(), if (last > 0) "VIDEO_STALLED" else "NO_VIDEO")
+                break
+            }
+        }
     }
     DisposableEffect(web, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
@@ -588,6 +631,7 @@ private fun WebRtcPlayer(
                 Lifecycle.Event.ON_START -> {
                     val run = generation.incrementAndGet()
                     rendered = false
+                    lastFrame.set(0)
                     localCandidates.getAndSet(kotlinx.coroutines.channels.Channel(64))?.cancel()
                     web.onResume()
                     val template =
@@ -603,6 +647,8 @@ private fun WebRtcPlayer(
                     )
                 }
                 Lifecycle.Event.ON_STOP -> {
+                    rendered = false
+                    lastFrame.set(0)
                     generation.incrementAndGet()
                     scope.coroutineContext.cancelChildren()
                     localCandidates.getAndSet(null)?.cancel()
